@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import { createDeployment } from "../services/deployment.service";
 import type { GitHubWebhookPayload } from "../types";
-import { prisma } from "../lib/prisma";
+import { prisma } from "@titan/db";
 
 export const verifyGitHubSignature = (
   payload: string,

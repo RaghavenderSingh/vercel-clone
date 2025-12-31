@@ -9,7 +9,7 @@ export default function Footer() {
           <div className="col-span-2 lg:col-span-2">
             <Link href="/" className="flex items-center space-x-2 mb-6">
                <span className="text-2xl font-bold tracking-tighter text-white">
-                Deply<span className="text-blue-500">.</span>
+                Titan<span className="text-blue-500">.</span>
               </span>
             </Link>
             <p className="text-sm leading-relaxed max-w-xs mb-6">

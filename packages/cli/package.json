@@ -1,0 +1,32 @@
+{
+    "name": "titan-cli",
+    "version": "0.0.1",
+    "description": "The CLI for Project Titan",
+    "main": "dist/index.js",
+    "bin": {
+        "titan": "./bin/titan.js",
+        "vc": "./bin/titan.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc -w",
+        "start": "node dist/index.js"
+    },
+    "dependencies": {
+        "commander": "^11.1.0",
+        "inquirer": "^9.2.12",
+        "axios": "^1.6.2",
+        "adm-zip": "^0.5.10",
+        "form-data": "^4.0.0",
+        "socket.io-client": "^4.7.2",
+        "chalk": "^4.1.2",
+        "ora": "^5.4.1",
+        "conf": "^10.2.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.5",
+        "@types/inquirer": "^9.0.7",
+        "@types/adm-zip": "^0.5.5",
+        "typescript": "^5.3.3"
+    }
+}

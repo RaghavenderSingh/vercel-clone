@@ -61,7 +61,7 @@ export const NavbarLogo = ({ className }: { className?: string }) => {
   return (
     <Link href="/" className={cn("flex items-center gap-2", className)}>
       <span className="text-xl font-bold tracking-tighter text-white">
-        Deply<span className="text-blue-500">.</span>
+        Titan<span className="text-blue-500">.</span>
       </span>
     </Link>
   );

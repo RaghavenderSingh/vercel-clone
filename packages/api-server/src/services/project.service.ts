@@ -1,5 +1,9 @@
-import { prisma } from "../lib/prisma";
+import { prisma } from "@titan/db";
 import type { createProjectDto } from "../types";
+import { createDeployment } from "./deployment.service";
+import { createLogger } from "@vercel-clone/shared";
+
+const logger = createLogger('api-server');
 
 export async function createProject(userId: string, data: createProjectDto) {
   const project = await prisma.project.create({
@@ -20,6 +24,20 @@ export async function createProject(userId: string, data: createProjectDto) {
       buildConfig: true,
     },
   });
+
+  // Trigger initial deployment
+  if (data.defaultBranch) {
+    try {
+        await createDeployment(project.id, "initial-import", data.defaultBranch, "Initial import");
+    } catch (error) {
+        logger.error("Failed to trigger initial deployment", error instanceof Error ? error : new Error(String(error)), {
+          projectId: project.id,
+          defaultBranch: data.defaultBranch
+        });
+        // Don't fail the request, just log it. The project was created.
+    }
+  }
+
   return project;
 }
 

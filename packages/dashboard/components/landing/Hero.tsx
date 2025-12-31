@@ -63,7 +63,7 @@ export function Hero() {
             variant="outline"
             className="mb-8 border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors px-4 py-1.5 text-sm backdrop-blur-sm"
           >
-            Deply 2.0 is now available
+            Titan 2.0 is now available
           </Badge>
         </FadeIn>
 
@@ -141,7 +141,7 @@ export function Hero() {
               </div>
               <div className="text-xs text-gray-500 ml-4 font-mono flex items-center gap-2">
                 <Terminal className="w-3 h-3" />
-                deply-cli — zsh
+                titan-cli — zsh
               </div>
             </div>
 

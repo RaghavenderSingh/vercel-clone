@@ -24,7 +24,8 @@ import {
   Clock,
   AlertCircle,
   Terminal,
-  Activity
+  Activity,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Deployment {
   id: string;
@@ -66,6 +68,7 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "deployments" | "settings">("overview");
   const [deploying, setDeploying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [deployForm, setDeployForm] = useState({
     branch: "main",
@@ -97,22 +100,45 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleDeploy = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDeploy = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setDeploying(true);
+    setError(null);
 
     try {
       await deploymentsAPI.create({
-        projectId: params.id,
+        projectId: params.id as string,
+        type: 'manual',
         branch: deployForm.branch,
         commitSha: `manual-${Date.now()}`,
         commitMessage: deployForm.commitMessage || "Manual deployment",
       });
 
-      setDeployForm({ branch: "main", commitMessage: "" });
+      await fetchDeployments();
+    } catch (error: any) {
+      console.error("Failed to deploy:", error);
+      setError(error.message || "Failed to deploy.");
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  const handleRedeploy = async (deployment: Deployment) => {
+    setDeploying(true);
+    try {
+      // Determine type based on commitSha format
+      const isManual = deployment.commitSha.startsWith('manual-');
+
+      await deploymentsAPI.create({
+        projectId: params.id as string,
+        type: isManual ? 'manual' : 'git',
+        branch: deployment.branch,
+        commitSha: deployment.commitSha,
+        commitMessage: deployment.commitMessage,
+      });
       await fetchDeployments();
     } catch (error) {
-      console.error("Failed to deploy:", error);
+      console.error("Failed to redeploy:", error);
     } finally {
       setDeploying(false);
     }
@@ -163,7 +189,7 @@ export default function ProjectDetailPage() {
 
   return (
     <>
-      <main className="container mx-auto px-4 md:px-6 py-6">
+      <main className="container mx-auto px-4 md:px-6 py-6 overflow-hidden">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div className="flex items-center gap-6">
           <Link
@@ -197,96 +223,109 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <div className="border-b border-white/10 mb-8">
-        <nav className="flex items-center gap-1 p-1 bg-white/5 rounded-full w-fit">
+      <div className="border-b border-white/5 mb-8">
+        <div className="flex items-center gap-1">
           {["overview", "deployments", "settings"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
               className={`
-                relative px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 capitalize
+                relative px-4 py-3 text-sm font-medium transition-all duration-300 capitalize
                 ${activeTab === tab 
-                    ? "text-white shadow-lg shadow-black/20" 
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "text-white" 
+                    : "text-zinc-500 hover:text-zinc-300"
                 }
               `}
             >
-              {activeTab === tab && (
-                <div className="absolute inset-0 bg-white/10 rounded-full border border-white/5" />
-              )}
               <span className="relative z-10">{tab}</span>
+              {activeTab === tab && (
+                <motion.div 
+                    layoutId="activeTab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-t-full shadow-[0_0_10px_rgba(255,255,255,0.5)]" 
+                />
+              )}
             </button>
           ))}
-        </nav>
+        </div>
       </div>
+      
+      <AnimatePresence mode="wait">
         {activeTab === "overview" && (
-            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <motion.div 
+                key="overview"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-10"
+            >
                 <div className="grid gap-8 lg:grid-cols-3">
                     <div className="lg:col-span-2 space-y-8">
-                        <section className="relative rounded-[2rem] border border-white/5 bg-black/40 overflow-hidden group hover:border-white/10 transition-colors duration-500">
-                           <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                           <div className="p-8 flex flex-col md:flex-row justify-between gap-10 relative z-10">
-                                <div className="space-y-8 flex-1">
-                                    <div className="space-y-2">
-                                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider mb-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            Production Environment
+                        <section className="relative rounded-3xl border border-white/5 bg-zinc-900/30 overflow-hidden group hover:border-white/10 transition-colors duration-500">
+                           <div className="p-8 flex flex-col xl:flex-row justify-between gap-8 relative z-10">
+                                <div className="space-y-8 flex-1 min-w-0">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                Production
+                                            </div>
+                                            <span className="text-zinc-500 text-xs font-medium px-2 py-0.5 border border-white/5 rounded-full">
+                                                Populted from Git
+                                            </span>
                                         </div>
-                                        <h2 className="text-3xl font-bold tracking-tight text-white">Production Deployment</h2>
-                                        <p className="text-zinc-400 text-sm leading-relaxed max-w-sm">
-                                            The latest deployment for your production environment is live and healthy.
-                                        </p>
+                                        <div>
+                                            <h2 className="text-2xl font-bold tracking-tight text-white mb-1">Production Deployment</h2>
+                                            <p className="text-zinc-400 text-sm">
+                                                The latest deployment is live.
+                                            </p>
+                                        </div>
                                     </div>
                                     
-                                    <div className="grid grid-cols-2 gap-x-8 gap-y-8">
-                                        <div className="group/item">
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-hover/item:text-zinc-300 transition-colors">Deployment URL</p>
-                                            <a href={latestDeployment?.deploymentUrl} target="_blank" className="text-sm font-medium flex items-center gap-2 text-zinc-200 hover:text-white transition-colors group-hover/item:text-emerald-400 w-fit">
-                                                <div className="truncate max-w-[180px]">
-                                                    {latestDeployment?.deploymentUrl?.replace('https://', '') || "Not deployed yet"}
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="col-span-2 sm:col-span-1 space-y-1.5">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Deployment</p>
+                                            <a href={latestDeployment?.deploymentUrl} target="_blank" className="block group/link">
+                                                <div className="flex items-center gap-2 text-sm font-medium text-zinc-200 group-hover/link:text-white transition-colors">
+                                                    <span className="truncate">{latestDeployment?.deploymentUrl?.replace('https://', '') || "Not deployed yet"}</span>
+                                                    <ExternalLink className="h-3 w-3 opacity-50 group-hover/link:opacity-100 transition-opacity" />
                                                 </div>
-                                                <ExternalLink className="h-3 w-3 shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity" />
                                             </a>
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Status</p>
-                                            <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${getStatusColor(latestDeployment?.status || 'idle')} bg-transparent border`}>
-                                                {getStatusIcon(latestDeployment?.status || 'idle')}
-                                                {latestDeployment?.status || "Inactive"}
+                                        <div className="space-y-1.5">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Status</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${latestDeployment?.status === 'ready' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-zinc-500'}`} />
+                                                <span className="text-sm font-medium capitalize text-zinc-200">{latestDeployment?.status || "Inactive"}</span>
                                             </div>
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Source</p>
+                                        <div className="space-y-1.5">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Source</p>
                                             <div className="flex items-center gap-2 text-zinc-300">
-                                                <div className="p-1 rounded bg-white/5">
-                                                    <Github className="h-3.5 w-3.5" />
-                                                </div>
-                                                <span className="text-sm font-medium">{project.repoUrl.split('/').pop()}</span>
+                                                <Github className="h-4 w-4 text-zinc-500" />
+                                                <span className="text-sm font-medium text-zinc-200">{project.repoUrl.split('/').pop()}</span>
                                             </div>
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Branch</p>
+                                        <div className="space-y-1.5">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Branch</p>
                                             <div className="flex items-center gap-2 text-zinc-300">
-                                                <div className="p-1 rounded bg-white/5">
-                                                    <GitBranch className="h-3.5 w-3.5" />
-                                                </div>
-                                                <span className="text-sm font-medium">{latestDeployment?.branch || "main"}</span>
+                                                <GitBranch className="h-4 w-4 text-zinc-500" />
+                                                <span className="text-sm font-medium text-zinc-200">{latestDeployment?.branch || "main"}</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="w-full md:w-[360px] aspect-square shrink-0 border border-white/5 bg-black/50 relative overflow-hidden group/preview shadow-2xl rounded-xl">
+                                <div className="w-full xl:w-[320px] aspect-[4/3] xl:aspect-square shrink-0 border border-white/5 bg-black/50 relative overflow-hidden group/preview rounded-xl">
                                     <img 
                                         src={`https://api.microlink.io/?url=${encodeURIComponent(latestDeployment?.deploymentUrl || 'https://deploy.app')}&screenshot=true&embed=screenshot.url&colorScheme=dark&viewport.width=1024&viewport.height=1024`}
-                                        className="w-full h-full object-cover transition-transform duration-700 group-hover/preview:scale-105 opacity-80 group-hover/preview:opacity-100"
+                                        className="w-full h-full object-cover opacity-80 group-hover/preview:opacity-100 transition-all duration-500"
                                         alt="Deployment Preview"
                                     />
-                                    <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-6 opacity-0 group-hover/preview:opacity-100 transition-opacity duration-500">
-                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-black text-[10px] font-bold uppercase tracking-wider transform translate-y-2 group-hover/preview:translate-y-0 transition-transform duration-300">
-                                            <ExternalLink className="h-3 w-3" />
-                                            Visit Deployment
+                                    <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl pointer-events-none" />
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity duration-300 bg-black/20 backdrop-blur-[2px]">
+                                        <div className="px-4 py-2 rounded-full bg-white text-black text-xs font-bold shadow-xl transform translate-y-2 group-hover/preview:translate-y-0 transition-transform duration-300 flex items-center gap-2">
+                                            Visit Deployment <ExternalLink className="h-3 w-3" />
                                         </div>
                                     </div>
                                 </div>
@@ -330,30 +369,29 @@ export default function ProjectDetailPage() {
                         </section>
                     </div>
 
-                    <div className="space-y-8">
-                        <section className="rounded-[2rem] border border-white/5 bg-black/40 p-8 hover:border-white/10 transition-colors duration-500">
-                            <h3 className="text-sm font-bold text-zinc-400 mb-6 uppercase tracking-wider">Recent Activity</h3>
-                            <div className="space-y-8 relative">
-                                <div className="absolute top-2 left-4 bottom-2 w-px bg-white/10" />
+                    <div className="space-y-6">
+                        <section className="rounded-3xl border border-white/5 bg-zinc-900/30 p-6">
+                            <h3 className="text-xs font-bold text-zinc-500 mb-6 uppercase tracking-wider">Recent Activity</h3>
+                            <div className="space-y-0 relative">
+                                <div className="absolute top-2 left-[15px] bottom-6 w-px bg-white/5" />
                                 {deployments.slice(0, 3).map((dep, i) => (
-                                    <div key={dep.id} className="flex gap-4 relative">
-                                        <div className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 bg-black ${
-                                            dep.status === 'ready' ? 'border-emerald-500/20 text-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 
-                                            dep.status === 'building' ? 'border-amber-500/20 text-amber-500' : 
-                                            dep.status === 'error' ? 'border-red-500/20 text-red-500' :
-                                            'border-white/10 text-zinc-500'
+                                    <div key={dep.id} className="flex gap-4 relative pb-6 last:pb-0 group">
+                                        <div className={`relative z-10 w-8 h-8 rounded-full border-[3px] border-black flex items-center justify-center shrink-0 ${
+                                            dep.status === 'ready' ? 'bg-zinc-800 text-emerald-500' : 
+                                            dep.status === 'building' ? 'bg-zinc-800 text-amber-500' : 
+                                            dep.status === 'error' ? 'bg-zinc-800 text-red-500' :
+                                            'bg-zinc-900 text-zinc-500'
                                         }`}>
-                                            {getStatusIcon(dep.status)}
+                                            <div className={`w-2 h-2 rounded-full ${dep.status === 'ready' ? 'bg-emerald-500' : dep.status === 'building' ? 'bg-amber-500' : 'bg-zinc-600'}`} />
                                         </div>
-                                        <div className="pt-1">
-                                            <p className="text-sm font-bold leading-none mb-1.5 text-zinc-200">{dep.commitMessage || "New deployment"}</p>
-                                            <div className="flex items-center gap-3">
-                                                <p className="text-[10px] text-zinc-500 flex items-center gap-1.5 uppercase tracking-wider font-medium">
-                                                    <Clock className="h-3 w-3" />
+                                        <div className="pt-0.5 min-w-0">
+                                            <p className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors truncate">{dep.commitMessage || "New deployment"}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-[11px] text-zinc-500 font-medium">
                                                     {formatDistanceToNow(new Date(dep.createdAt))} ago
                                                 </p>
                                                 <span className="w-0.5 h-0.5 rounded-full bg-zinc-700" />
-                                                <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-mono">
+                                                <p className="text-[11px] text-zinc-500 font-mono">
                                                     {dep.commitSha?.substring(0, 7)}
                                                 </p>
                                             </div>
@@ -361,36 +399,57 @@ export default function ProjectDetailPage() {
                                     </div>
                                 ))}
                             </div>
-                            <div className="mt-8 pt-6 border-t border-white/5">
+                            <div className="mt-6 pt-0">
                                 <Link href="/dashboard/deployments" className="block w-full">
-                                    <Button variant="ghost" className="w-full rounded-xl h-12 font-bold text-xs uppercase tracking-widest hover:bg-white/5 text-zinc-400 hover:text-white border border-transparent hover:border-white/5 transition-all">
+                                    <Button variant="ghost" className="w-full justify-start pl-0 text-zinc-400 hover:text-white hover:bg-transparent text-xs font-medium group">
                                         View All Activity
-                                        <ChevronRight className="h-4 w-4 ml-2" />
+                                        <ChevronRight className="h-3 w-3 ml-1 transition-transform group-hover:translate-x-0.5" />
                                     </Button>
                                 </Link>
                             </div>
                         </section>
 
-                        <section className="rounded-[2rem] border border-white/5 bg-black/40 p-8">
-                            <h3 className="text-sm font-bold text-zinc-400 mb-6 uppercase tracking-wider">Quick Actions</h3>
-                            <div className="grid gap-4">
-                                <Button className="h-14 rounded-2xl font-bold gap-3 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:scale-[1.02] transition-all text-sm uppercase tracking-wider bg-white text-black hover:bg-zinc-100">
-                                    <Play className="h-4 w-4 fill-current" />
-                                    New Deployment
+                        <section className="rounded-3xl border border-white/5 bg-zinc-900/30 p-6">
+                            <h3 className="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-wider">Quick Actions</h3>
+                            {error && (
+                                <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400">
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    <p className="text-xs font-medium">{error}</p>
+                                </div>
+                            )}
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button 
+                                    onClick={() => handleDeploy()} 
+                                    disabled={deploying}
+                                    className="h-12 rounded-xl font-medium shadow-[0_0_15px_rgba(255,255,255,0.05)] hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] bg-white text-black hover:bg-zinc-200 border-0 text-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    {deploying ? (
+                                        <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                                    ) : (
+                                        <Play className="h-3.5 w-3.5 mr-2 fill-current" />
+                                    )}
+                                    {deploying ? "Deploying..." : "Deploy"}
                                 </Button>
-                                <Button variant="outline" className="h-14 rounded-2xl font-bold border-white/10 bg-white/5 hover:bg-white/10 text-sm uppercase tracking-wider text-zinc-300 hover:text-white hover:border-white/20 transition-all">
-                                    <Settings className="h-4 w-4" />
-                                    Project Settings
+                                <Button variant="outline" className="h-12 rounded-xl font-medium border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs">
+                                    <Settings className="h-3.5 w-3.5 mr-2" />
+                                    Settings
                                 </Button>
                             </div>
                         </section>
                     </div>
                 </div>
-            </div>
+            </motion.div>
         )}
 
         {activeTab === "deployments" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <motion.div 
+                key="deployments"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6"
+            >
                 <div className="flex justify-between items-center mb-10">
                     <h2 className="text-3xl font-black tracking-tighter">All Deployments</h2>
                     <Button variant="outline" className="rounded-xl font-bold border-border bg-muted/10 h-10 px-6">
@@ -446,7 +505,11 @@ export default function ProjectDetailPage() {
                                                 <DropdownMenuItem className="rounded-lg font-bold text-xs uppercase tracking-widest px-3 py-2.5">
                                                     View Logs
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem className="rounded-lg font-bold text-xs uppercase tracking-widest px-3 py-2.5">
+                                                <DropdownMenuItem 
+                                                    className="rounded-lg font-bold text-xs uppercase tracking-widest px-3 py-2.5 cursor-pointer"
+                                                    onClick={() => handleRedeploy(dep)}
+                                                    disabled={deploying}
+                                                >
                                                     Redeploy
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -457,11 +520,18 @@ export default function ProjectDetailPage() {
                         )}
                     </div>
                 </div>
-            </div>
+            </motion.div>
         )}
 
         {activeTab === "settings" && (
-             <div className="max-w-4xl space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <motion.div 
+                key="settings"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="max-w-4xl space-y-12"
+            >
                 <section className="space-y-6">
                     <div>
                         <h2 className="text-3xl font-black tracking-tighter mb-2">Build & Output Settings</h2>
@@ -516,28 +586,12 @@ export default function ProjectDetailPage() {
                         </Button>
                     </div>
                 </section>
-             </div>
+             </motion.div>
         )}
+      </AnimatePresence>
       </main>
 
     </>
   );
 }
-
-const Loader2 = ({ className }: { className?: string }) => (
-    <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        width="24" 
-        height="24" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
-        className={className}
-    >
-        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-);
 

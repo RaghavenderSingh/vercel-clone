@@ -12,7 +12,10 @@
     "prisma:studio": "prisma studio"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/bun": "latest",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/csurf": "^1.11.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.0.3",
     "@types/socket.io": "^3.0.2",
@@ -24,15 +27,24 @@
   "dependencies": {
     "@octokit/auth-oauth-app": "^9.0.3",
     "@octokit/rest": "^22.0.1",
-    "@prisma/client": "5.22.0",
+    "@titan/db": "workspace:*",
+    "@vercel-clone/shared": "workspace:*",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/multer": "^2.0.0",
+    "bcrypt": "^6.0.0",
     "bullmq": "^5.66.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "csurf": "^1.11.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "iconv-lite": "^0.7.1",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.3",
-    "socket.io": "^4.8.1"
+    "multer": "^2.0.2",
+    "socket.io": "^4.8.1",
+    "zod": "^4.2.1"
   }
 }

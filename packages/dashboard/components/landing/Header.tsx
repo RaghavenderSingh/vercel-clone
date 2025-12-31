@@ -20,7 +20,7 @@ export default function Header() {
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center space-x-2">
             <span className="text-xl font-bold tracking-tighter">
-              Deply<span className="text-blue-500">.</span>
+              Titan<span className="text-blue-500">.</span>
             </span>
           </Link>
           <DesktopNav />

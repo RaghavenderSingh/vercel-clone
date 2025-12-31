@@ -14,14 +14,17 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String?
-  avatar    String?
-  githubId  String?   @unique
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  projects  Project[]
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String?
+  passwordHash String?   // Optional to support both password and OAuth
+  avatar       String?
+  githubId     String?   @unique
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  projects     Project[]
+
+  @@index([email])
 }
 
 model Project {

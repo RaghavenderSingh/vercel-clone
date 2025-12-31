@@ -1,4 +1,4 @@
-import { prisma } from "../lib/prisma";
+import { prisma } from "@titan/db";
 import { DeploymentStatus, type BuildJob } from "../types";
 import { addBuildJob, removeJob } from "./queue.service";
 
@@ -26,11 +26,12 @@ export async function createDeployment(
   });
 
   // Update deployment URL with the deployment ID
-  const cloudFrontDomain = process.env.CLOUDFRONT_DOMAIN || "d32sthgcsucbjc.cloudfront.net";
+  const requestHandlerDomain = process.env.REQUEST_HANDLER_DOMAIN || "localhost:3001";
+  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
   const updatedDeployment = await prisma.deployment.update({
     where: { id: deployment.id },
     data: {
-      deploymentUrl: `https://${cloudFrontDomain}/deployments/${deployment.id}/index.html`,
+      deploymentUrl: `${protocol}://${deployment.id}.${requestHandlerDomain}`,
     },
   });
   const buildJob: BuildJob = {

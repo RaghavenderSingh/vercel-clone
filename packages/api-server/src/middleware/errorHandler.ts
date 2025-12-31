@@ -1,4 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
+import { createLogger } from "@vercel-clone/shared";
+
+const logger = createLogger('api-server');
 
 export const errorHandler = (
   err: Error,
@@ -6,7 +9,12 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  console.error("Error:", err);
+  logger.error('Request error', err, {
+    method: req.method,
+    path: req.path,
+    query: req.query,
+    body: req.body
+  });
 
   if (err.name === "PrismaClientKnownRequestError") {
     return res.status(400).json({

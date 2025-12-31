@@ -27,6 +27,7 @@ import {
   MoreHorizontal,
   GitBranch
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "date-fns";
@@ -180,64 +181,69 @@ export default function DashboardOverviewPage() {
                         <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-white/[0.02] hover:bg-white/5">
                             <Grid className="h-4 w-4 text-white/60" />
                         </Button>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button className="h-10 px-4 bg-white text-black font-bold text-sm hover:bg-white/90 rounded-lg gap-2">
-                                    Add New...
-                                    <ChevronRight className="h-4 w-4 rotate-90" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-black border-white/10 p-1 rounded-lg">
-                                <DropdownMenuItem className="text-xs font-medium text-white/70 hover:text-white px-3 py-2 rounded-md transition-colors">Project</DropdownMenuItem>
-                                <DropdownMenuItem className="text-xs font-medium text-white/70 hover:text-white px-3 py-2 rounded-md transition-colors">Domain</DropdownMenuItem>
-                                <DropdownMenuItem className="text-xs font-medium text-white/70 hover:text-white px-3 py-2 rounded-md transition-colors">Store</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Link href="/dashboard/new">
+                            <Button className="h-10 px-4 bg-white text-black font-bold text-sm hover:bg-white/90 rounded-lg gap-2">
+                                Add Project
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 
-                <div className="grid gap-5 md:grid-cols-2">
-                    {projects.map((project) => (
-                        <Link key={project.id} href={`/dashboard/projects/${project.id}`} className="group relative rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-all overflow-hidden">
-                            <div className="p-6 space-y-6">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-2xl">
-                                            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[10px] border-b-black" />
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, staggerChildren: 0.1 }}
+                    className="grid gap-5 md:grid-cols-2"
+                >
+                    {projects.map((project, i) => (
+                        <motion.div
+                            key={project.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1 }}
+                        >
+                            <Link href={`/dashboard/projects/${project.id}`} className="group block relative rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-all overflow-hidden h-full">
+                                <div className="p-6 space-y-6">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-2xl">
+                                                <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[10px] border-b-black" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-[15px] text-white group-hover:text-primary transition-colors tracking-tight">{project.name}</h3>
+                                                <p className="text-[11px] text-white/40 font-medium">{project.name.toLowerCase()}.deply.app</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-[15px] text-white group-hover:text-primary transition-colors tracking-tight">{project.name}</h3>
-                                            <p className="text-[11px] text-white/40 font-medium">{project.name.toLowerCase()}.deply.app</p>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/20 hover:text-white hover:bg-white/5">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-white/20 hover:text-white hover:bg-white/5">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
 
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center">
-                                            <Github className="h-3 w-3 text-white/40" />
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center">
+                                                <Github className="h-3 w-3 text-white/40" />
+                                            </div>
+                                            <p className="text-[11px] font-medium text-white/50">{project.repoUrl.replace('https://github.com/', '')}</p>
                                         </div>
-                                        <p className="text-[11px] font-medium text-white/50">{project.repoUrl.replace('https://github.com/', '')}</p>
-                                    </div>
-                                    <div className="space-y-1.5 pl-0.5">
-                                        <p className="text-[11px] font-bold text-white/80">build fix</p>
-                                        <p className="text-[10px] text-white/40 font-medium">Sep 18 on <GitBranch className="h-2.5 w-2.5 inline mx-0.5" /> main</p>
+                                        <div className="space-y-1.5 pl-0.5">
+                                            <p className="text-[11px] font-bold text-white/80">build fix</p>
+                                            <p className="text-[10px] text-white/40 font-medium">Sep 18 on <GitBranch className="h-2.5 w-2.5 inline mx-0.5" /> main</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </Link>
+                                <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </Link>
+                        </motion.div>
                     ))}
-                </div>
+                </motion.div>
             </div>
         </div>
-      </main>
+    </main>
   );
 }
 

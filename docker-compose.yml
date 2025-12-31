@@ -1,34 +1,110 @@
 version: '3.8'
+
 services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: vercel_clone
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-vercel_clone}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - titan-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    networks:
+      - titan-network
 
   api-server:
-    build: ./packages/api-server
+    build:
+      context: .
+      dockerfile: packages/api-server/Dockerfile
     ports:
       - "3000:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in .env}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - titan-network
 
   build-worker:
-    build: ./packages/build-worker
+    build:
+      context: .
+      dockerfile: packages/build-worker/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in .env}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET}
     depends_on:
-      - redis
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - titan-network
+
+  request-handler:
+    build:
+      context: .
+      dockerfile: packages/request-handler/Dockerfile
+    ports:
+      - "3002:3001" # Host port 3002 maps to container port 3001 (Internal port of request-handler)
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in .env}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - titan-network
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: packages/dashboard/Dockerfile
+    ports:
+      - "3001:3000" # Host port 3001 maps to container port 3000 (Internal port of Next.js)
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://api-server:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set in .env}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3001}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+    networks:
+      - titan-network
 
 volumes:
   postgres_data:
+
+
+networks:
+  titan-network:
+    driver: bridge
