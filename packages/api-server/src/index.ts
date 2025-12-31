@@ -11,6 +11,8 @@ import { authRouter } from "./routes/auth";
 import { webhookRouter } from "./routes/webhook";
 import { projectRouter } from "./routes/project";
 import { deploymentRouter } from "./routes/deployment";
+import { aiRouter } from "./routes/ai";
+import domainRouter from "./routes/domain";
 import { errorHandler } from "./middleware/errorHandler";
 import rateLimit from "express-rate-limit";
 import { createLogger } from "@vercel-clone/shared";
@@ -123,6 +125,8 @@ app.post("/api/auth/oauth/callback", authLimiter, oauthCallback);
 app.use("/api/auth", authLimiter, csrfProtection, authRouter);
 app.use("/api/projects", csrfProtection, projectRouter);
 app.use("/api/deployments", csrfProtection, deploymentRouter);
+app.use("/api/ai", csrfProtection, aiRouter);
+app.use("/api/projects/:projectId/domains", csrfProtection, domainRouter);
 
 // New Deploy Endpoint - uses JWT auth (no CSRF needed for CLI)
 import { deployProject } from "./controllers/deployment.controller";

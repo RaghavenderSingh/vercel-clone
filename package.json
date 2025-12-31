@@ -6,8 +6,29 @@
   "workspaces": [
     "packages/*"
   ],
+  "scripts": {
+    "setup": "./setup-env.sh",
+    "dev": "bun run dev:services",
+    "dev:services": "concurrently -n api,worker,handler,dash -c bgBlue,bgGreen,bgYellow,bgMagenta \"bun run dev:api\" \"bun run dev:worker\" \"bun run dev:handler\" \"bun run dev:dash\"",
+    "dev:api": "cd packages/api-server && PORT=3000 bun run dev",
+    "dev:worker": "cd packages/build-worker && bun run dev",
+    "dev:handler": "cd packages/request-handler && PORT=8000 bun run dev",
+    "dev:dash": "cd packages/dashboard && PORT=3001 bun run dev",
+    "build:all": "bun run build:shared && bun run build:ai && bun run build:db && bun run build:api && bun run build:worker && bun run build:handler && bun run build:dash",
+    "build:shared": "cd packages/shared && bun run build",
+    "build:ai": "cd packages/ai-service && bun run build",
+    "build:db": "cd packages/db && bunx prisma generate",
+    "build:api": "cd packages/api-server && bun run build",
+    "build:worker": "cd packages/build-worker && bun run build",
+    "build:handler": "cd packages/request-handler && bun run build",
+    "build:dash": "cd packages/dashboard && bun run build",
+    "db:studio": "cd packages/db && bunx prisma studio",
+    "db:migrate": "cd packages/db && bunx prisma migrate dev",
+    "db:push": "cd packages/db && bunx prisma db push"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "concurrently": "^9.2.1"
   },
   "peerDependencies": {
     "typescript": "^5"

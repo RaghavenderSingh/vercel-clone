@@ -14,50 +14,56 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  name         String?
-  passwordHash String?   // Optional to support both password and OAuth
-  avatar       String?
-  githubId     String?   @unique
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  projects     Project[]
+  id            String            @id @default(uuid())
+  email         String            @unique
+  name          String?
+  passwordHash  String?           // Optional to support both password and OAuth
+  avatar        String?
+  githubId      String?           @unique
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  projects      Project[]
+  conversations AIConversation[]
+  aiUsage       AIUsage[]
 
   @@index([email])
 }
 
 model Project {
-  id          String       @id @default(uuid())
-  name        String
-  repoUrl     String
-  framework   String       @default("nextjs")
-  userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deployments Deployment[]
-  domains     Domain[]
-  buildConfig BuildConfig?
+  id            String            @id @default(uuid())
+  name          String
+  repoUrl       String
+  framework     String            @default("nextjs")
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deployments   Deployment[]
+  domains       Domain[]
+  buildConfig   BuildConfig?
+  conversations AIConversation[]
+  codeAnalyses  CodeAnalysis[]
 
   @@index([userId])
 }
 
 model Deployment {
-  id            String   @id @default(uuid())
-  projectId     String
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  commitSha     String
-  commitMessage String?
-  branch        String   @default("main")
-  status        String   @default("queued") // queued, building, ready, error
-  buildLogs     String?  @db.Text
-  deploymentUrl String?
-  s3Key         String?
-  errorMessage  String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  domains       Domain[]
+  id             String            @id @default(uuid())
+  projectId      String
+  project        Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  commitSha      String
+  commitMessage  String?
+  branch         String            @default("main")
+  status         String            @default("queued") // queued, building, ready, error
+  buildLogs      String?           @db.Text
+  deploymentUrl  String?
+  s3Key          String?
+  errorMessage   String?           @db.Text
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  domains        Domain[]
+  fixSuggestions AIFixSuggestion[]
+  codeAnalysis   CodeAnalysis?
 
   @@index([projectId])
   @@index([status])
@@ -85,7 +91,107 @@ model BuildConfig {
   installCommand String   @default("npm install")
   outputDir      String   @default(".next")
   nodeVersion    String   @default("18")
-  envVars        Json? // Store as JSON
+  envVars        Json?    // Store as JSON
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+// ============================================
+// AI-Native DevOps Models
+// ============================================
+
+model AIConversation {
+  id        String      @id @default(uuid())
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  messages  AIMessage[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([projectId])
+  @@index([userId])
+}
+
+model AIMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String         // "user" | "assistant" | "system"
+  content        String         @db.Text
+  tokens         Int?
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId])
+}
+
+model AIFixSuggestion {
+  id           String     @id @default(uuid())
+  deploymentId String
+  deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  errorMessage String     @db.Text
+  suggestion   String     @db.Text
+  fixedCode    String?    @db.Text
+  confidence   Float      @default(0.7)
+  status       String     @default("pending") // pending, applied, dismissed
+  prUrl        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([deploymentId])
+  @@index([status])
+}
+
+model CodeAnalysis {
+  id              String           @id @default(uuid())
+  deploymentId    String           @unique
+  deployment      Deployment       @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  analysisType    String           @default("genius-ai")
+  score           Float?
+  recommendations Recommendation[]
+  metrics         Json?
+  status          String           @default("analyzing")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([projectId])
+  @@index([deploymentId])
+}
+
+model Recommendation {
+  id              String       @id @default(uuid())
+  analysisId      String
+  analysis        CodeAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  category        String       // performance, security, best-practices, bundle-size
+  severity        String       // low, medium, high, critical
+  title           String
+  description     String       @db.Text
+  suggestion      String       @db.Text
+  affectedFiles   String[]
+  estimatedImpact String?
+  status          String       @default("open")
+  createdAt       DateTime     @default(now())
+
+  @@index([analysisId])
+  @@index([category])
+  @@index([severity])
+}
+
+model AIUsage {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feature      String   // auto-fixer, brain-tab, genius-ai
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  cost         Float
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([feature])
 }

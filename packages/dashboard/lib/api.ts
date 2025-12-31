@@ -93,6 +93,7 @@ export const projectsAPI = {
   get: (id: string) => api.get(`/projects/${id}`),
   create: (data: any) => api.post("/projects", data),
   delete: (id: string) => api.delete(`/projects/${id}`),
+  updateBuildConfig: (id: string, data: any) => api.put(`/projects/${id}/build-config`, data),
 };
 
 export const deploymentsAPI = {
@@ -102,6 +103,13 @@ export const deploymentsAPI = {
   listByProject: (projectId: string) =>
     api.get(`/deployments/project/${projectId}`),
   cancel: (id: string) => api.post(`/deployments/${id}/cancel`),
+};
+
+export const domainsAPI = {
+  list: (projectId: string) => api.get(`/projects/${projectId}/domains`),
+  add: (projectId: string, domain: string) => api.post(`/projects/${projectId}/domains`, { domain }),
+  remove: (projectId: string, domain: string) => api.delete(`/projects/${projectId}/domains/${domain}`),
+  verify: (projectId: string, domain: string) => api.post(`/projects/${projectId}/domains/${domain}/verify`),
 };
 
 export default api;

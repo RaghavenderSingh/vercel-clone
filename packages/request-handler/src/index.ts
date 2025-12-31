@@ -50,13 +50,33 @@ app.all("*", async (req, res) => {
     logger.http(req.method, req.url, 0, 0, { subdomain, host });
 
     try {
-        // 1. Resolve Deployment
-        let deployment = await prisma.deployment.findUnique({
-            where: { id: subdomain },
+        let deployment;
+
+        // 1. Try Resolve by Custom Domain
+        // Remove port from host if present for domain lookup
+        const domainName = host.split(':')[0];
+        const domainRecord = await prisma.domain.findUnique({
+            where: { domain: domainName },
         });
 
+        if (domainRecord && domainRecord.verified) {
+            deployment = await prisma.deployment.findFirst({
+                where: { projectId: domainRecord.projectId, status: "READY" },
+                orderBy: { createdAt: "desc" },
+            });
+            logger.debug('Resolved custom domain', { domain: domainName, projectId: domainRecord.projectId, deploymentId: deployment?.id });
+        }
+
+        // 2. Fallback to Subdomain/ID resolution
         if (!deployment) {
-            // Try finding by project name
+            // First check if it is a direct deployment ID
+            deployment = await prisma.deployment.findUnique({
+                where: { id: subdomain },
+            });
+        }
+
+        if (!deployment) {
+            // Try finding by project name (subdomain)
             const project = await prisma.project.findFirst({
                 where: { name: subdomain },
             });
@@ -110,7 +130,7 @@ app.all("*", async (req, res) => {
             });
 
             // 4. Proxy to Container with retry logic
-            let retries = 2;
+            let retries = 10; // Increased retries for slower cold starts
             const attemptProxy = () => {
                 proxy.web(req, res, {
                     target: `http://127.0.0.1:${containerPort}`,
@@ -122,12 +142,12 @@ app.all("*", async (req, res) => {
                     if (err && retries > 0 && !res.headersSent) {
                         retries--;
                         logger.warn('Proxy attempt failed, retrying', {
-                            attempt: 2 - retries,
-                            maxRetries: 2,
+                            attempt: 10 - retries,
+                            maxRetries: 10,
                             containerPort,
                             error: err.message
                         });
-                        setTimeout(attemptProxy, 1000); // Retry after 1 second
+                        setTimeout(attemptProxy, 1500); // Retry after 1.5 seconds
                     } else if (err) {
                         logger.error('All proxy retries failed', err, { containerPort });
                         if (!res.headersSent) {

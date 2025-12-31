@@ -37,6 +37,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { motion, AnimatePresence } from "framer-motion";
+import { FixSuggestions } from "@/components/auto-fixer/FixSuggestions";
+import { EnvVarsSettings } from "@/components/projects/settings/EnvVarsSettings";
+import { DomainSettings } from "@/components/projects/settings/DomainSettings";
+import { BuildSettings } from "@/components/projects/settings/BuildSettings";
+import { DangerZone } from "@/components/projects/settings/DangerZone";
 
 interface Deployment {
   id: string;
@@ -57,6 +62,7 @@ interface Project {
   buildConfig: {
     buildCommand: string;
     installCommand: string;
+    envVars: Record<string, string>;
   };
 }
 
@@ -409,6 +415,13 @@ export default function ProjectDetailPage() {
                             </div>
                         </section>
 
+                        {/* AI Fix Suggestions - Show for most recent failed deployment */}
+                        {deployments.length > 0 && deployments.some(d => d.status === 'error') && (
+                            <section className="rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-900/10 to-purple-800/5 p-6">
+                                <FixSuggestions deploymentId={deployments.find(d => d.status === 'error')?.id || ''} />
+                            </section>
+                        )}
+
                         <section className="rounded-3xl border border-white/5 bg-zinc-900/30 p-6">
                             <h3 className="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-wider">Quick Actions</h3>
                             {error && (
@@ -523,7 +536,7 @@ export default function ProjectDetailPage() {
             </motion.div>
         )}
 
-        {activeTab === "settings" && (
+        {activeTab === "settings" && project && (
              <motion.div 
                 key="settings"
                 initial={{ opacity: 0, y: 10 }}
@@ -532,60 +545,25 @@ export default function ProjectDetailPage() {
                 transition={{ duration: 0.2 }}
                 className="max-w-4xl space-y-12"
             >
-                <section className="space-y-6">
-                    <div>
-                        <h2 className="text-3xl font-black tracking-tighter mb-2">Build & Output Settings</h2>
-                        <p className="text-muted-foreground font-bold">Configure how your project is built and served.</p>
-                    </div>
-                    
-                    <div className="grid gap-6">
-                        <div className="rounded-[2rem] border border-border bg-card/40 p-10 space-y-8">
-                            <div className="grid md:grid-cols-2 gap-8">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Build Command</label>
-                                    <div className="relative">
-                                        <Terminal className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                        <Input 
-                                            defaultValue={project.buildConfig.buildCommand}
-                                            className="h-14 pl-12 bg-muted/20 border-border/40 rounded-2xl focus-visible:ring-1 focus-visible:ring-primary font-mono text-sm"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Install Command</label>
-                                    <div className="relative">
-                                        <Terminal className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                        <Input 
-                                            defaultValue={project.buildConfig.installCommand}
-                                            className="h-14 pl-12 bg-muted/20 border-border/40 rounded-2xl focus-visible:ring-1 focus-visible:ring-primary font-mono text-sm"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="pt-6 border-t border-border flex justify-end">
-                                <Button className="rounded-xl px-10 h-12 font-black shadow-lg shadow-primary/10">
-                                    Save Changes
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                <div className="grid gap-12">
+                  <DomainSettings projectId={project.id} />
+                  
+                  <EnvVarsSettings 
+                    projectId={project.id} 
+                    initialEnvVars={project.buildConfig.envVars || {}} 
+                    onUpdate={fetchProject}
+                  />
 
-                <section className="space-y-6">
-                    <div>
-                        <h2 className="text-3xl font-black tracking-tighter mb-2 text-destructive">Danger Zone</h2>
-                        <p className="text-muted-foreground font-bold">Irreversible actions that affect your production infrastructure.</p>
-                    </div>
-                    <div className="rounded-[2rem] border border-destructive/20 bg-destructive/5 p-10 flex flex-col md:flex-row justify-between items-center gap-10">
-                        <div>
-                            <h4 className="text-xl font-black mb-1">Delete this Project</h4>
-                            <p className="text-muted-foreground text-sm font-bold">The project will be permanently removed, including all active deployments and edge domains.</p>
-                        </div>
-                        <Button variant="destructive" className="rounded-xl px-10 h-12 font-black shadow-xl shadow-destructive/10 whitespace-nowrap">
-                            Delete Project
-                        </Button>
-                    </div>
-                </section>
+                  <BuildSettings 
+                    projectId={project.id}
+                    initialConfig={{
+                        buildCommand: project.buildConfig.buildCommand,
+                        installCommand: project.buildConfig.installCommand
+                    }}
+                  />
+
+                  <DangerZone projectId={project.id} />
+                </div>
              </motion.div>
         )}
       </AnimatePresence>

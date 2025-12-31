@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { deploymentsAPI } from "@/lib/api";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { useDeploymentUpdates, useDeploymentLogs } from "@/lib/useSocket";
+import { useDeploymentUpdates, useDeploymentLogs, useSocket } from "@/lib/useSocket";
+import { Button } from "@/components/ui/button";
+import { ExternalLink, GitBranch, GitCommit, ChevronLeft } from "lucide-react";
+import { DeploymentStatusBadge } from "@/components/deployments/DeploymentStatusBadge";
+import { DeploymentTerminal } from "@/components/deployments/DeploymentTerminal";
+import { motion } from "framer-motion";
+
 interface Deployment {
   id: string;
   projectId: string;
@@ -24,36 +30,30 @@ interface Deployment {
 
 export default function DeploymentLogsPage() {
   const params = useParams();
+  const router = useRouter();
   const [deployment, setDeployment] = useState<Deployment | null>(null);
   const [loading, setLoading] = useState(true);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const { connected } = useSocket();
   const [liveLogs, setLiveLogs] = useState<string[]>([]);
+
   useEffect(() => {
     fetchDeployment();
   }, [params.id]);
 
-  useEffect(() => {
-    if (!autoRefresh) return;
-    if (deployment?.status === "ready" || deployment?.status === "error") {
-      setAutoRefresh(false);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      fetchDeployment();
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [autoRefresh, deployment?.status]);
+  // Real-time Updates
   useDeploymentUpdates(params.id as string, (data) => {
     if (data.deploymentId === params.id) {
       setDeployment((prev) => (prev ? { ...prev, status: data.status } : prev));
+      if (data.status === 'ready' && !deployment?.deploymentUrl) {
+          fetchDeployment(); // Refresh to get URL if it was missing 
+      }
     }
   });
 
   useDeploymentLogs(params.id as string, (log) => {
     setLiveLogs((prev) => [...prev, log]);
   });
+
   const fetchDeployment = async () => {
     try {
       const { data } = await deploymentsAPI.get(params.id as string);
@@ -65,170 +65,116 @@ export default function DeploymentLogsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "ready":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "building":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200 animate-pulse";
-      case "queued":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "error":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
+  if (loading) return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  if (!deployment) return <div className="h-screen flex items-center justify-center">Deployment not found</div>;
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "ready":
-        return "✓";
-      case "building":
-        return "⟳";
-      case "queued":
-        return "⋯";
-      case "error":
-        return "✗";
-      default:
-        return "?";
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!deployment) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Deployment not found</div>
-      </div>
-    );
-  }
+  // Combine historical and live logs
+  const allLogs = [
+      ...(deployment.buildLogs ? deployment.buildLogs.split('\n') : []),
+      ...liveLogs
+  ].filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link
-            href={`/dashboard/projects/${deployment.projectId}`}
-            className="text-blue-600 hover:underline"
-          >
-            ← Back to {deployment.project.name}
-          </Link>
+    <div className="min-h-screen bg-background">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+           <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/projects/${deployment.projectId}`)}>
+                  <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex flex-col">
+                  <h1 className="font-bold text-lg leading-none">{deployment.project.name}</h1>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                      <GitBranch className="h-3 w-3" />
+                      <span>{deployment.branch}</span>
+                      <span className="w-1 h-1 rounded-full bg-border" />
+                      <GitCommit className="h-3 w-3" />
+                      <span className="font-mono">{deployment.commitSha.slice(0, 7)}</span>
+                  </div>
+              </div>
+           </div>
+           
+           <div className="flex items-center gap-4">
+                <div className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${connected ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                    <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-500'}`} />
+                    {connected ? 'Live Connection' : 'Offline'}
+                </div>
+                <DeploymentStatusBadge status={deployment.status} />
+                {deployment.status === 'ready' && (
+                    <Button asChild className="h-8 rounded-full font-bold px-6 shadow-glow">
+                        <a href={deployment.deploymentUrl} target="_blank" rel="noopener noreferrer">
+                            Visit <ExternalLink className="ml-2 h-4 w-4" />
+                        </a>
+                    </Button>
+                )}
+           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-2">
-                Deployment {deployment.commitSha.slice(0, 7)}
-              </h1>
-              <p className="text-gray-600">
-                {deployment.commitMessage || "No message"}
-              </p>
-            </div>
-            <div
-              className={`px-4 py-2 rounded-lg border-2 ${getStatusColor(
-                deployment.status
-              )}`}
-            >
-              <span className="text-2xl mr-2">
-                {getStatusIcon(deployment.status)}
-              </span>
-              <span className="font-semibold uppercase">
-                {deployment.status}
-              </span>
-            </div>
-          </div>
+      <main className="container mx-auto px-4 py-8 grid lg:grid-cols-3 gap-8">
+         {/* Left Column: Logs */}
+         <div className="lg:col-span-2 space-y-4">
+            <h2 className="text-xl font-bold tracking-tight">Build Logs</h2>
+            <DeploymentTerminal logs={allLogs} status={deployment.status} />
+         </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500 block">Branch</span>
-              <span className="font-mono">{deployment.branch}</span>
+         {/* Right Column: Preview & Details */}
+         <div className="space-y-6">
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="aspect-video bg-muted relative group">
+                     {deployment.status === 'ready' ? (
+                         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
+                            {/* In a real app, this would be a screenshot */}
+                            <div className="text-center space-y-2">
+                                <div className="text-6xl">✨</div>
+                                <p className="font-bold text-muted-foreground">Deployment Ready</p>
+                            </div>
+                            {/* Overlay Button */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                <Button asChild variant="secondary" className="font-bold">
+                                    <a href={deployment.deploymentUrl} target="_blank">Open Preview</a>
+                                </Button>
+                            </div>
+                         </div>
+                     ) : (
+                        <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
+                             <div className="text-center space-y-2">
+                                <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                                <p className="font-medium text-muted-foreground text-sm">Generating preview...</p>
+                            </div>
+                        </div>
+                     )}
+                </div>
+                <div className="p-4 border-t border-border">
+                    <h3 className="font-bold mb-1">Preview</h3>
+                    <p className="text-xs text-muted-foreground truncate">{deployment.deploymentUrl}</p>
+                </div>
             </div>
-            <div>
-              <span className="text-gray-500 block">Commit</span>
-              <span className="font-mono">
-                {deployment.commitSha.slice(0, 7)}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500 block">Created</span>
-              <span>
-                {formatDistanceToNow(new Date(deployment.createdAt), {
-                  addSuffix: true,
-                })}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500 block">Updated</span>
-              <span>
-                {formatDistanceToNow(new Date(deployment.updatedAt), {
-                  addSuffix: true,
-                })}
-              </span>
-            </div>
-          </div>
 
-          {deployment.status === "ready" && (
-            <div className="mt-4 pt-4 border-t">
-              <a
-                href={deployment.deploymentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Visit Deployment →
-              </a>
+            <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+                <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wider">Deployment Details</h3>
+                
+                <div className="space-y-3 text-sm">
+                    <div className="flex justify-between py-2 border-b border-border/40">
+                        <span className="text-muted-foreground">Status</span>
+                        <span className="font-medium capitalize">{deployment.status}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-border/40">
+                        <span className="text-muted-foreground">Commit</span>
+                        <span className="font-mono">{deployment.commitSha.slice(0, 7)}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-border/40">
+                        <span className="text-muted-foreground">Branch</span>
+                        <span className="font-medium">{deployment.branch}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                        <span className="text-muted-foreground">Created</span>
+                        <span className="font-medium">{formatDistanceToNow(new Date(deployment.createdAt), { addSuffix: true })}</span>
+                    </div>
+                </div>
             </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b flex justify-between items-center">
-            <h2 className="text-xl font-bold">Build Logs</h2>
-            {(deployment.status === "building" ||
-              deployment.status === "queued") && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                Auto-refreshing...
-              </div>
-            )}
-          </div>
-          <div className="p-6">
-            {deployment.buildLogs || liveLogs.length > 0 ? (
-              <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm font-mono whitespace-pre-wrap">
-                {liveLogs.map((log, i) => (
-                  <div key={i}>{log}</div>
-                ))}
-                {deployment.buildLogs}
-              </pre>
-            ) : deployment.status === "queued" ? (
-              <div className="text-center text-gray-500 py-8">
-                <div className="text-4xl mb-2">⏳</div>
-                <p>Deployment queued. Waiting to start...</p>
-              </div>
-            ) : deployment.status === "building" ? (
-              <div className="text-center text-gray-500 py-8">
-                <div className="text-4xl mb-2 animate-spin">⟳</div>
-                <p>Building... Logs will appear here</p>
-              </div>
-            ) : (
-              <div className="text-center text-gray-500 py-8">
-                <p>No build logs available</p>
-              </div>
-            )}
-          </div>
-        </div>
+         </div>
       </main>
     </div>
   );

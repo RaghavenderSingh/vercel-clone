@@ -127,7 +127,7 @@ export class ContainerService {
         await container.start();
 
         // Wait for container to be healthy (proper health checking)
-        await this.waitForHealthy(port, 30000);
+        await this.waitForHealthy(port, deploymentId, 30000);
 
         this.containers.set(deploymentId, {
             containerId: container.id,
@@ -140,7 +140,7 @@ export class ContainerService {
     /**
      * Wait for container to become healthy by polling its port
      */
-    private async waitForHealthy(port: number, timeout: number = 30000): Promise<void> {
+    private async waitForHealthy(port: number, deploymentId: string, timeout: number = 30000): Promise<void> {
         const startTime = Date.now();
         while (Date.now() - startTime < timeout) {
             try {

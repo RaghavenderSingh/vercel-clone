@@ -5,7 +5,14 @@ import { FadeIn } from "@/components/landing/FadeIn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NoiseBackground } from "@/components/ui/noise-background";
-import { ArrowRight, Github, Terminal, Loader2, CheckCircle2, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  Github,
+  Terminal,
+  Loader2,
+  CheckCircle2,
+  Zap,
+} from "lucide-react";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { motion } from "framer-motion";
@@ -18,13 +25,14 @@ export function Hero() {
   return (
     <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden border-b border-white/5">
       {/* Background Grid */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" 
-        style={{ 
+      <div
+        className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]"
+        style={{
           backgroundImage: `linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)`,
-          backgroundSize: '60px 60px'
-        }} 
+          backgroundSize: "60px 60px",
+        }}
       />
-      
+
       <div className="absolute inset-0 pointer-events-none opacity-40">
         <LaserFlow
           horizontalBeamOffset={0.0}
@@ -94,7 +102,9 @@ export function Hero() {
             >
               <Link href={status === "authenticated" ? "/dashboard" : "/login"}>
                 <Button className="h-10 rounded-full bg-black text-white px-6 font-medium border border-neutral-800 shadow-[0px_1px_0px_0px_var(--color-neutral-900)_inset] transition-all duration-300 active:scale-95 hover:bg-neutral-900">
-                  {status === "authenticated" ? "Go to Dashboard" : "Start Deploying"}
+                  {status === "authenticated"
+                    ? "Go to Dashboard"
+                    : "Start Deploying"}
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </Link>
@@ -112,26 +122,28 @@ export function Hero() {
               className="h-12 px-8 text-base border-gray-800 bg-black/50 hover:bg-gray-900 text-gray-300 hover:text-white rounded-full"
             >
               <Github className="mr-2 w-4 h-4" />
-              {status === "authenticated" ? "Create New Project" : "Import from GitHub"}
+              {status === "authenticated"
+                ? "Create New Project"
+                : "Import from GitHub"}
             </Button>
           </div>
         </FadeIn>
         <FadeIn delay={0.5} className="relative max-w-3xl mx-auto">
-          <motion.div 
-            animate={{ 
+          <motion.div
+            animate={{
               y: [0, -10, 0],
             }}
             transition={{
               duration: 6,
               repeat: Infinity,
-              ease: "easeInOut"
+              ease: "easeInOut",
             }}
             className="relative rounded-[2.5rem] border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-2xl overflow-hidden group"
           >
             {/* Gloss reflection overlay */}
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
             <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
-            
+
             {/* Terminal Header */}
             <div className="flex items-center gap-2 px-6 py-4 border-b border-white/5 bg-white/[0.02]">
               <div className="flex gap-1.5">
@@ -150,7 +162,7 @@ export function Hero() {
                 <div className="flex items-center">
                   <span className="text-blue-400 mr-2">➜</span>
                   <span className="text-cyan-300 mr-2">~/project</span>
-                  <span className="text-gray-400">deply deploy</span>
+                  <span className="text-gray-400">titan deploy</span>
                 </div>
 
                 <div className="space-y-2 py-2">
@@ -162,9 +174,7 @@ export function Hero() {
                   >
                     <Loader2 className="w-4 h-4 mr-2 text-blue-500 animate-spin" />
                     Building application...{" "}
-                    <span className="ml-2 text-xs text-gray-500">
-                      [241ms]
-                    </span>
+                    <span className="ml-2 text-xs text-gray-500">[241ms]</span>
                   </motion.div>
 
                   <motion.div
