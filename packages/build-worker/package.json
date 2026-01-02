@@ -1,0 +1,35 @@
+{
+  "name": "build-worker",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/dockerode": "^3.3.47",
+    "@types/node": "^25.0.3",
+    "prisma": "5.22.0"
+  },
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "start": "bun dist/index.js"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@titan/db": "workspace:*",
+    "@vercel-clone/shared": "workspace:*",
+    "@vercel-clone/ai-service": "workspace:*",
+    "@types/adm-zip": "^0.5.7",
+    "adm-zip": "^0.5.16",
+    "aws-sdk": "^2.1693.0",
+    "bullmq": "^5.66.1",
+    "dockerode": "^4.0.9",
+    "dotenv": "^17.2.3",
+    "glob": "^13.0.0",
+    "ioredis": "^5.8.2",
+    "simple-git": "^3.30.0",
+    "socket.io-client": "^4.8.1"
+  }
+}
