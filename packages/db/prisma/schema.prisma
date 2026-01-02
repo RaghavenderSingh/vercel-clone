@@ -10,18 +10,17 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
-  id            String            @id @default(uuid())
-  email         String            @unique
+  id            String           @id @default(uuid())
+  email         String           @unique
   name          String?
-  passwordHash  String?           // Optional to support both password and OAuth
+  passwordHash  String? // Optional to support both password and OAuth
   avatar        String?
-  githubId      String?           @unique
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  githubId      String?          @unique
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   projects      Project[]
   conversations AIConversation[]
   aiUsage       AIUsage[]
@@ -30,14 +29,14 @@ model User {
 }
 
 model Project {
-  id            String            @id @default(uuid())
+  id            String           @id @default(uuid())
   name          String
   repoUrl       String
-  framework     String            @default("nextjs")
+  framework     String           @default("nextjs")
   userId        String
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   deployments   Deployment[]
   domains       Domain[]
   buildConfig   BuildConfig?
@@ -91,7 +90,7 @@ model BuildConfig {
   installCommand String   @default("npm install")
   outputDir      String   @default(".next")
   nodeVersion    String   @default("18")
-  envVars        Json?    // Store as JSON
+  envVars        Json? // Store as JSON
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -119,7 +118,7 @@ model AIMessage {
   id             String         @id @default(uuid())
   conversationId String
   conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role           String         // "user" | "assistant" | "system"
+  role           String // "user" | "assistant" | "system"
   content        String         @db.Text
   tokens         Int?
   createdAt      DateTime       @default(now())
@@ -166,8 +165,8 @@ model Recommendation {
   id              String       @id @default(uuid())
   analysisId      String
   analysis        CodeAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-  category        String       // performance, security, best-practices, bundle-size
-  severity        String       // low, medium, high, critical
+  category        String // performance, security, best-practices, bundle-size
+  severity        String // low, medium, high, critical
   title           String
   description     String       @db.Text
   suggestion      String       @db.Text
@@ -185,7 +184,7 @@ model AIUsage {
   id           String   @id @default(uuid())
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  feature      String   // auto-fixer, brain-tab, genius-ai
+  feature      String // auto-fixer, brain-tab, genius-ai
   model        String
   inputTokens  Int
   outputTokens Int

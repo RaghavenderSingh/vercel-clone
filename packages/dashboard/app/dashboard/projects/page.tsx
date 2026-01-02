@@ -1,39 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { projectsAPI } from "@/lib/api";
 import Link from "next/link";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { BorderBeam } from "@/components/ui/border-beam";
 import { 
   Plus, 
   Github, 
-  ExternalLink, 
-  MoreVertical, 
   Search, 
-  Grid, 
+  LayoutGrid, 
   List as ListIcon, 
-  ChevronRight,
-  Filter,
-  ArrowUpDown,
-  Laptop,
-  Clock,
-  Zap,
-  LayoutGrid,
-  Menu,
-  MoreHorizontal,
-  Globe
+  GitBranch,
+  ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { formatDistanceToNow } from "date-fns";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Project {
   id: string;
@@ -45,13 +35,12 @@ interface Project {
 }
 
 export default function ProjectsPage() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
-  const router = useRouter();
 
   useEffect(() => {
     fetchProjects();
@@ -79,194 +68,181 @@ export default function ProjectsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
-      </div>
+        <main className="container mx-auto px-4 md:px-6 py-8">
+            <div className="flex justify-between items-center mb-8">
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-32" />
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-48 rounded-xl border border-white/5" />
+                ))}
+            </div>
+        </main>
     );
   }
 
   return (
-    <main className="container mx-auto px-4 md:px-6 py-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-1">Projects</h1>
-          <p className="text-white/40 text-sm">
-            Manage and scale your applications with high-performance edge
-            networking.
-          </p>
-        </div>
+    <main className="container mx-auto px-4 md:px-6 py-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
         <Link href="/dashboard/new">
-          <Button className="rounded-lg gap-2 bg-white text-black hover:bg-white/90 font-bold">
-            <Plus className="h-4 w-4" />
-            New Project
+          <Button className="font-medium bg-white text-black hover:bg-white/90">
+            <Plus className="h-4 w-4 mr-2" />
+            Add New
           </Button>
         </Link>
       </div>
 
+      {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 mb-8">
         <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search projects..."
-              className="pl-12 h-14 bg-muted/20 border-border/40 rounded-2xl focus-visible:ring-1 focus-visible:ring-primary/20 text-lg"
+              className="pl-9 bg-black/50 border-white/10 focus:border-white/20 transition-colors"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="icon" className="h-14 w-14 rounded-2xl border-border/40 hover:bg-muted/30">
-                <Filter className="h-5 w-5" />
-            </Button>
-            <Button variant="outline" size="icon" className="h-14 w-14 rounded-2xl border-border/40 hover:bg-muted/30">
-                <ArrowUpDown className="h-5 w-5" />
-            </Button>
-            <div className="h-14 w-px bg-border/40 mx-2 hidden md:block" />
-            <div className="flex items-center bg-muted/30 p-1.5 rounded-2xl border border-border/50">
+        </div>
+        <div className="flex gap-2">
+            <Select defaultValue="all">
+                <SelectTrigger className="w-[140px] bg-black/50 border-white/10">
+                    <SelectValue placeholder="All Frameworks" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Frameworks</SelectItem>
+                    <SelectItem value="nextjs">Next.js</SelectItem>
+                    <SelectItem value="react">React</SelectItem>
+                    <SelectItem value="vue">Vue</SelectItem>
+                </SelectContent>
+            </Select>
+            <div className="h-10 w-px bg-white/10 mx-1 hidden md:block" />
+            <div className="flex items-center bg-white/5 rounded-md border border-white/10 p-1">
                 <Button 
-                    variant={viewMode === "grid" ? "secondary" : "ghost"} 
+                    variant="ghost" 
                     size="icon" 
-                    className="h-11 w-11 rounded-xl shadow-sm transition-all"
+                    className={`h-8 w-8 rounded-sm ${viewMode === "grid" ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"}`}
                     onClick={() => setViewMode("grid")}
                 >
-                    <LayoutGrid className="h-5 w-5" />
+                    <LayoutGrid className="h-4 w-4" />
                 </Button>
                 <Button 
-                    variant={viewMode === "list" ? "secondary" : "ghost"} 
+                    variant="ghost" 
                     size="icon" 
-                    className="h-11 w-11 rounded-xl shadow-sm transition-all"
+                    className={`h-8 w-8 rounded-sm ${viewMode === "list" ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"}`}
                     onClick={() => setViewMode("list")}
                 >
-                    <Menu className="h-5 w-5" />
+                    <ListIcon className="h-4 w-4" />
                 </Button>
             </div>
-          </div>
         </div>
+      </div>
 
-        {filteredProjects.length === 0 ? (
-          <div className="py-40 text-center rounded-[3rem] border-2 border-dashed border-border/40 bg-muted/5 flex flex-col items-center">
-             <div className="w-24 h-24 bg-background rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-border">
-                <Search className="h-12 w-12 text-muted-foreground/30" />
+      {/* Project List */}
+      {filteredProjects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-white/10 rounded-xl bg-white/[0.02]">
+            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                <Search className="h-5 w-5 text-muted-foreground" />
             </div>
-            <h3 className="text-3xl font-bold mb-3 tracking-tight">No projects found</h3>
-            <p className="text-muted-foreground text-lg mb-10">Start by creating your first deployment.</p>
-            <Link href="/dashboard/new">
-                <Button variant="outline" className="rounded-2xl px-10 h-14 font-black border-border hover:bg-background shadow-xl">
-                    Create a Project
-                </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className={viewMode === "grid" ? "grid gap-8 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-4"}>
-            {filteredProjects.map((project) => (
-              viewMode === "grid" ? (
-                <div
-                    key={project.id}
-                    className="group relative rounded-[2.5rem] border border-border bg-card/40 backdrop-blur-md overflow-hidden transition-all hover:shadow-[0_40px_80px_rgba(0,0,0,0.3)] hover:-translate-y-3"
-                >
-                    <BorderBeam className="opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                    <div className="p-10">
-                        <div className="flex items-start justify-between mb-10">
-                            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 rounded-3xl flex items-center justify-center text-white text-4xl font-black shadow-2xl group-hover:scale-110 transition-transform">
+            <h3 className="text-lg font-medium mb-1">No projects found</h3>
+            <p className="text-sm text-muted-foreground mb-6">Try adjusting your search or filters.</p>
+            <Button variant="outline" onClick={() => setSearchQuery("")} className="border-white/10 hover:bg-white/5">
+                Clear Search
+            </Button>
+        </div>
+      ) : (
+        <div className={viewMode === "grid" ? "grid gap-6 md:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-3"}>
+          {filteredProjects.map((project) => (
+            viewMode === "grid" ? (
+              // Grid Card
+              <Link 
+                key={project.id} 
+                href={`/dashboard/projects/${project.id}`}
+                className="group flex flex-col justify-between rounded-xl border border-white/10 bg-black/40 hover:border-white/20 transition-all duration-200 overflow-hidden"
+              >
+                <div className="p-5">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-white/10 to-white/5 border border-white/10 flex items-center justify-center font-bold text-lg text-white">
                                 {project.name[0].toUpperCase()}
                             </div>
-                            <div className="flex gap-3">
-                                <Link href={`/dashboard/projects/${project.id}`} className="p-3 text-muted-foreground hover:text-foreground transition-all rounded-2xl bg-muted/30 border border-transparent hover:border-border hover:scale-110">
-                                    <ExternalLink className="w-5 h-5" />
-                                </Link>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button className="p-3 text-muted-foreground hover:text-foreground transition-all rounded-2xl bg-muted/30 border border-transparent hover:border-border hover:scale-110">
-                                            <MoreHorizontal className="w-5 h-5" />
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="rounded-2xl border-border bg-background/80 backdrop-blur-xl p-2 min-w-[180px] shadow-2xl">
-                                        <DropdownMenuItem className="rounded-xl px-4 py-3 font-bold group">
-                                            Settings
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem className="rounded-xl px-4 py-3 font-bold text-destructive">
-                                            Delete Project
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                            <div>
+                                <h3 className="font-semibold text-sm text-white group-hover:text-blue-400 transition-colors flex items-center gap-1">
+                                    {project.name}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">{project.framework || 'Next.js'}</p>
                             </div>
                         </div>
-
-                        <h3 className="text-3xl font-black mb-5 group-hover:text-primary transition-colors tracking-tighter">
-                            {project.name}
-                        </h3>
-                        
-                        <div className="flex flex-col gap-4 mb-10">
-                            <div className="flex items-center gap-3 bg-emerald-500/10 px-4 py-2 rounded-2xl border border-emerald-500/20 w-fit">
-                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                                <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">Running</p>
-                            </div>
-                            <div className="space-y-2">
-                                <p className="text-muted-foreground text-sm font-bold flex items-center gap-3 group/url">
-                                    <Globe className="w-4 h-4" />
-                                    <span className="group-hover/url:text-foreground transition-colors">{project.name.toLowerCase()}.deply.app</span>
-                                </p>
-                                <p className="text-muted-foreground text-sm font-bold flex items-center gap-3">
-                                    <Github className="w-4 h-4" />
-                                    <span className="truncate max-w-[200px]">{project.repoUrl.replace('https://github.com/', '')}</span>
-                                </p>
-                            </div>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/5 text-white/70">
+                            <ArrowUpRight className="w-4 h-4" />
                         </div>
                     </div>
-
-                    <div className="px-10 py-8 bg-muted/30 border-t border-border mt-auto flex justify-between items-center group-hover:bg-muted/50 transition-all">
-                        <div className="flex items-center gap-3">
-                            <div className="px-3 py-1.5 rounded-xl bg-background border border-border text-[10px] font-black uppercase tracking-[0.2em] text-foreground/60 shadow-sm">
-                                {project.framework || 'WEB'}
-                            </div>
-                        </div>
-                        <Link href={`/dashboard/projects/${project.id}`} className="text-xs font-black text-primary group-hover:translate-x-3 transition-transform flex items-center gap-2 italic">
-                            OVERVIEW
-                            <ChevronRight className="w-4 h-4 stroke-[4]" />
-                        </Link>
+                    
+                    <div className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
+                        <p className="truncate max-w-[200px] hover:underline cursor-pointer flex items-center gap-1.5">
+                            {project.name.toLowerCase()}.deply.app
+                        </p>
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                        <Github className="w-3.5 h-3.5" />
+                        <span className="truncate max-w-[200px]">{project.repoUrl.replace('https://github.com/', '')}</span>
                     </div>
                 </div>
-              ) : (
-                <div 
-                    key={project.id}
-                    className="group flex flex-col md:flex-row items-center justify-between p-8 rounded-[2rem] border border-border bg-card/40 backdrop-blur-md hover:bg-muted/10 transition-all hover:shadow-xl"
+
+                <div className="px-5 py-3 border-t border-white/5 bg-white/[0.02] flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span>Ready</span>
+                    </div>
+                    <span>{formatDistanceToNow(new Date(project.createdAt))} ago</span>
+                </div>
+              </Link>
+            ) : (
+             // List Item
+             <Link 
+                key={project.id} 
+                href={`/dashboard/projects/${project.id}`}
+                className="group flex items-center justify-between p-4 rounded-lg border border-white/5 bg-black/40 hover:border-white/10 hover:bg-white/[0.02] transition-colors"
                 >
-                    <div className="flex items-center gap-8 flex-1">
-                        <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl flex items-center justify-center text-primary text-2xl font-black border border-primary/20">
+                    <div className="flex items-center gap-4">
+                        <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-medium text-white">
                             {project.name[0].toUpperCase()}
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="text-2xl font-black tracking-tight mb-1">{project.name}</h3>
-                            <div className="flex items-center gap-6 text-sm text-muted-foreground font-bold">
-                                <span className="flex items-center gap-2 ring-emerald-500/20 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-tighter">
-                                    <Zap className="h-3 w-3 fill-emerald-500" />
-                                    Running
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">{project.name}</h3>
+                                <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full border border-white/10 bg-white/5">
+                                    {project.framework || 'Next.js'}
                                 </span>
-                                <span className="flex items-center gap-2 truncate opacity-70 group-hover:opacity-100 transition-opacity">
-                                    <Github className="h-4 w-4" />
-                                    {project.repoUrl.split('/').pop()}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                                <span className="flex items-center gap-1">
+                                    <GitBranch className="w-3 h-3" />
+                                    main
                                 </span>
-                                <span className="flex items-center gap-2 opacity-70">
-                                    <Clock className="h-4 w-4" />
-                                    Updated 2h ago
-                                </span>
+                                <span>•</span>
+                                <span>Updated {formatDistanceToNow(new Date(project.updatedAt || project.createdAt))} ago</span>
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-6 mt-6 md:mt-0">
-                        <div className="px-3 py-1.5 rounded-xl border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            {project.framework || 'WEB'}
-                        </div>
-                        <Link href={`/dashboard/projects/${project.id}`}>
-                            <Button className="rounded-xl px-10 h-12 font-black shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all">
-                                View
-                            </Button>
-                        </Link>
+                    <div className="flex items-center gap-6">
+                         <div className="hidden md:flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span className="text-xs text-white/70">Ready</span>
+                            </div>
+                         </div>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground group-hover:text-white">
+                            <ArrowUpRight className="w-4 h-4" />
+                        </Button>
                     </div>
-                </div>
-              )
-            ))}
-          </div>
-        )}
-      </main>
+                </Link>
+            )
+          ))}
+        </div>
+      )}
+    </main>
   );
 }

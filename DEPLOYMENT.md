@@ -1,80 +1,121 @@
 # Deployment Guide
 
-## Option 1: Docker 
+This document outlines the steps to deploy the Titan platform to Amazon Web Services (AWS) using Docker Compose on an EC2 instance.
 
-Run the entire system with a single command. This requires Docker and Docker Compose installed.
+## Prerequisites
 
+1.  **AWS Account**: Access to the AWS Console.
+2.  **Domain Name**: A domain managed by Route53 or another registrar (referred to as `yourdomain.com`).
+3.  **AWS CLI**: Installed and configured locally (optional, for S3 setup).
+
+## Infrastructure Setup
+
+### 1. S3 Bucket
+Create an S3 bucket to store deployment artifacts (e.g., `titan-artifacts-prod`).
+*   **Region**: Same as your EC2 instance (e.g., `us-east-1`).
+*   **Permissions**: Ensure the IAM user provided to the application has `s3:PutObject`, `s3:GetObject`, and `s3:ListBucket` permissions.
+
+### 2. EC2 Instance
+Launch an EC2 instance to host the platform.
+*   **AMI**: Ubuntu Server 22.04 LTS (HVM).
+*   **Instance Type**: `t3.medium` or larger (build processes are CPU intensive).
+*   **Storage**: At least 30GB gp3 root volume.
+*   **Security Group**:
+    *   Allow SSH (22) from your IP.
+    *   Allow HTTP (80) from Anywhere (0.0.0.0/0).
+    *   Allow HTTPS (443) from Anywhere (0.0.0.0/0).
+
+### 3. DNS Configuration
+Point your domain to the EC2 instance's Public IP.
+*   `A Record`: `yourdomain.com` -> `<EC2_PUBLIC_IP>`
+*   `A Record`: `*.yourdomain.com` -> `<EC2_PUBLIC_IP>`
+
+## Server Configuration
+
+SSH into your EC2 instance:
 ```bash
-docker-compose up --build
+ssh -i key.pem ubuntu@<EC2_PUBLIC_IP>
 ```
 
-The services will be available at:
-- **API Server**: http://localhost:3000
-- **Dashboard**: http://localhost:3001
-- **Request Handler**: http://localhost:3002
-
-## Option 2: Manual Startup
-
-If you prefer to run services individually without Docker, follow these steps.
-
-### Prerequisites
-- Node.js (v18+) or Bun (v1.0+)
-- PostgreSQL (Running locally or hosted)
-- Redis (Running locally or hosted)
-
-### 1. Database Setup
-Ensure you have a `.env` file in `packages/db` or `packages/api-server` (or set env vars globally).
+### 1. Install Docker & Docker Compose
+Updates the package index and installs the necessary runtime environment.
 
 ```bash
-# Install dependencies
-bun install
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+sudo mkdir -m 0755 -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-# Generate Prisma Client
-cd packages/db
-bun run db:generate
+echo \
+  "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Push Schema to DB (Run from api-server or db package)
-cd ../api-server
-bun run prisma:migrate
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Enable non-root Docker execution
+sudo usermod -aG docker $USER
+newgrp docker
 ```
 
-### 2. Start Services
+### 2. Deploy Application
 
-Open 4 separate terminal windows/tabs:
+Clone the repository and prepare the configuration.
 
-**Terminal 1: API Server**
 ```bash
-cd packages/api-server
-bun run dev
+git clone <YOUR_REPO_URL> titan
+cd titan
 ```
 
-**Terminal 2: Build Worker**
+Create the production environment file:
 ```bash
-cd packages/build-worker
-bun run dev
+cp .env.example .env
+nano .env
 ```
 
-**Terminal 3: Request Handler**
+**Required Variables**:
+*   `POSTGRES_PASSWORD`: Secure password for the database.
+*   `JWT_SECRET`: Random string for ensuring secure sessions.
+*   `NEXTAUTH_SECRET`: Random string for storage encryption.
+*   `S3_BUCKET`: The name of the S3 bucket created earlier.
+*   `AWS_ACCESS_KEY_ID`: IAM User Access Key.
+*   `AWS_SECRET_ACCESS_KEY`: IAM User Secret Key.
+*   `DOMAIN_NAME`: Your actual domain (e.g., `example.com`).
+
+**Update Nginx Configuration**:
+Edit `nginx/nginx.conf` to replace `titan.com` with your actual domain name.
+
 ```bash
-cd packages/request-handler
-bun run dev
+nano nginx/nginx.conf
 ```
 
-**Terminal 4: Dashboard**
+### 3. Start Services
+
+Launch the application stack in detached mode.
+
 ```bash
-cd packages/dashboard
-bun run dev
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-### 3. CLI Tool
+### 4. Verification
 
-To use the CLI:
+*   Visit `http://yourdomain.com` to access the Dashboard.
+*   Visit `http://api.yourdomain.com/health` to verify the API status.
 
+## Troubleshooting
+
+**View Logs**:
 ```bash
-cd packages/cli
-bun run build
-# Link globally
-npm link 
-# Or run directly
-./bin/titan.js login
+docker compose -f docker-compose.prod.yml logs -f
+```
+
+**Restart Services**:
+```bash
+docker compose -f docker-compose.prod.yml restart
+```
+
+**Database Access**:
+```bash
+docker compose -f docker-compose.prod.yml exec postgres psql -U postgres -d vercel_clone
 ```

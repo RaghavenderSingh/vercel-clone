@@ -6,11 +6,20 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Bell, Activity, Construction } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function ComingSoonPage({ title, description }: { title: string, description: string }) {
+export default function ComingSoonPage({ 
+    title, 
+    description,
+    withHeader = true 
+}: { 
+    title: string, 
+    description: string,
+    withHeader?: boolean
+}) {
   const { data: session } = useSession();
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-all duration-300">
+      {withHeader && (
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/60 backdrop-blur-xl">
         <div className="container flex h-16 items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-10">
@@ -41,8 +50,9 @@ export default function ComingSoonPage({ title, description }: { title: string, 
           </div>
         </div>
       </header>
+      )}
 
-      <main className="container mx-auto px-4 md:px-8 py-40 flex flex-col items-center justify-center text-center">
+      <main className={`container mx-auto px-4 md:px-8 flex flex-col items-center justify-center text-center ${withHeader ? 'py-40' : 'py-20 h-[80vh]'}`}>
         <div className="w-32 h-32 bg-muted/20 rounded-[2.5rem] border border-border flex items-center justify-center mb-10 animate-bounce">
             <Construction className="h-16 w-16 text-primary/40" />
         </div>

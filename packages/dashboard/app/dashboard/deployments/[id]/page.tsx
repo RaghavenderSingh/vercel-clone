@@ -101,10 +101,17 @@ export default function DeploymentLogsPage() {
                     {connected ? 'Live Connection' : 'Offline'}
                 </div>
                 <DeploymentStatusBadge status={deployment.status} />
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="hidden md:flex h-8 rounded-full font-medium border-white/10 bg-white/5 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                    Redeploy
+                </Button>
                 {deployment.status === 'ready' && (
-                    <Button asChild className="h-8 rounded-full font-bold px-6 shadow-glow">
+                    <Button asChild className="h-8 rounded-full font-bold px-6 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transition-all bg-emerald-500 hover:bg-emerald-400 text-black border-0">
                         <a href={deployment.deploymentUrl} target="_blank" rel="noopener noreferrer">
-                            Visit <ExternalLink className="ml-2 h-4 w-4" />
+                            Visit <ExternalLink className="ml-2 h-3.5 w-3.5" />
                         </a>
                     </Button>
                 )}

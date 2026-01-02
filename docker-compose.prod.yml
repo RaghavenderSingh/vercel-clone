@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # Load Balancer / Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      - dashboard
+      - api-server
+      - request-handler
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # For SSL (Certbot), mount certificates here:
+      # - ./certbot/conf:/etc/letsencrypt
+      # - ./certbot/www:/var/www/certbot
+    networks:
+      - titan-network
+    restart: always
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vercel_clone}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - titan-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - titan-network
+    restart: always
+
+  api-server:
+    build:
+      context: .
+      dockerfile: packages/api-server/Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vercel_clone}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET}
+      # For local Docker networking:
+      REQUEST_HANDLER_DOMAIN: ${DOMAIN_NAME:-titan.com}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - titan-network
+    restart: always
+
+  build-worker:
+    build:
+      context: .
+      dockerfile: packages/build-worker/Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vercel_clone}
+      REDIS_URL: redis://redis:6379
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET}
+      # Docker Socket Path usually defaults to /var/run/docker.sock
+      DOCKER_SOCKET_PATH: /var/run/docker.sock
+    volumes:
+      # Critical: Mount the host Docker socket so the worker can spawn containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - titan-network
+    restart: always
+
+  request-handler:
+    build:
+      context: .
+      dockerfile: packages/request-handler/Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vercel_clone}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET}
+      PORT: 3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - titan-network
+    volumes:
+      # Needs access to Docker socket if it needs to inspect container ports directly
+      # Logic check: request-handler calls `containerService.getPort`. 
+      # Does that use Docker API? YES ("dockerode").
+      # So it DOES need the socket.
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: packages/dashboard/Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://api.${DOMAIN_NAME:-titan.com}
+      INTERNAL_API_URL: http://api-server:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set in .env}
+      NEXTAUTH_URL: http://${DOMAIN_NAME:-titan.com}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+    networks:
+      - titan-network
+    restart: always
+
+volumes:
+  postgres_data:
+
+
+networks:
+  titan-network:
+    driver: bridge

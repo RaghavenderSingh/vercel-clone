@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install Dependencies
+      run: bun install
+
+    - name: Build All Packages
+      run: bun run build:all
+      env:
+        # Mock env vars for build
+        POSTGRES_PASSWORD: mock
+        JWT_SECRET: mock
+        NEXTAUTH_SECRET: mock
+        S3_BUCKET: mock
+        AWS_ACCESS_KEY_ID: mock
+        AWS_SECRET_ACCESS_KEY: mock

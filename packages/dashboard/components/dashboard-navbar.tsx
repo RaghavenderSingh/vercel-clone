@@ -15,6 +15,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const NAV_ITEMS = [
   "Overview",
@@ -74,6 +75,7 @@ export function DashboardNavbar() {
         <div className="flex items-center gap-3">
             <Button
                 variant="outline" 
+                onClick={() => toast.info("Global search is coming soon!")}
                 className="h-9 relative w-full md:w-64 justify-start bg-black/50 border-white/10 text-muted-foreground hover:bg-white/5 hover:text-white transition-all group"
             >
                 <Search className="mr-2 h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity" />
@@ -85,7 +87,12 @@ export function DashboardNavbar() {
             
             <div className="h-6 w-px bg-white/10 mx-1" />
 
-            <Button size="icon" variant="ghost" className="h-9 w-9 text-white/70 hover:text-white hover:bg-white/5 rounded-full transition-colors">
+            <Button 
+                size="icon" 
+                variant="ghost" 
+                onClick={() => toast.info("Notifications are coming soon!")}
+                className="h-9 w-9 text-white/70 hover:text-white hover:bg-white/5 rounded-full transition-colors"
+            >
                 <Bell className="h-4 w-4" />
             </Button>
 

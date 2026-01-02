@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function LandingNavbar() {
   const { status } = useSession();
@@ -59,7 +60,9 @@ export default function LandingNavbar() {
                 <input
                   type="text"
                   placeholder="Find..."
-                  className="h-8 w-44 pl-9 pr-8 rounded-md bg-white/5 border border-white/10 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:bg-black/40 hover:bg-white/10 hover:border-white/20 transition-all duration-200 placeholder:text-neutral-600"
+                  onClick={() => toast.info("Global search is coming soon!")}
+                  className="h-8 w-44 pl-9 pr-8 rounded-md bg-white/5 border border-white/10 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:bg-black/40 hover:bg-white/10 hover:border-white/20 transition-all duration-200 placeholder:text-neutral-600 cursor-not-allowed"
+                  readOnly
                 />
                 <div className="absolute right-2 px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-[9px] text-neutral-500 font-mono pointer-events-none group-hover:border-white/20 transition-colors">
                   F
@@ -69,6 +72,7 @@ export default function LandingNavbar() {
               {/* Feedback Button */}
               <Button
                 variant="ghost"
+                onClick={() => toast.info("Feedback portal is coming soon!")}
                 className="hidden md:flex h-8 px-3 text-[13px] font-normal text-neutral-400 border border-transparent hover:text-white hover:bg-white/5 hover:border-white/10 transition-all duration-200 active:scale-[0.98]"
               >
                 Feedback
@@ -78,7 +82,8 @@ export default function LandingNavbar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-neutral-400 hover:text-white hover:bg-white/5 transition-all duration-200 active:scale-95 group relative"
+                onClick={() => toast.info("Notifications are coming soon!")}
+                className="h-8 w-8 text-neutral-400 hover:text-white hover:bg-white/5 rounded-full transition-colors duration-200 active:scale-95 group relative"
               >
                 <Bell className="w-4 h-4" />
                 <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-blue-500 rounded-full border border-black group-hover:animate-pulse" />
