@@ -29,9 +29,9 @@ export const authOptions: NextAuthOptions = {
         if (email) {
             try {
                 console.log("[Auth] Attempting to fetch backend token for:", email);
-                const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+                const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
                 
-                const response = await fetch(`${apiUrl}/api/auth/oauth/callback`, {
+                const response = await fetch(`${apiUrl}/auth/oauth/callback`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
