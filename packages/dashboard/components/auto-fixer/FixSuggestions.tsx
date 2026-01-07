@@ -38,7 +38,6 @@ export function FixSuggestions({ deploymentId }: FixSuggestionsProps) {
 
       if (!response.ok) {
         if (response.status === 404) {
-          // No suggestions found - this is okay
           setSuggestions([]);
           return;
         }
@@ -71,7 +70,6 @@ export function FixSuggestions({ deploymentId }: FixSuggestionsProps) {
         throw new Error("Failed to dismiss suggestion");
       }
 
-      // Update local state
       setSuggestions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, status: "dismissed" } : s))
       );
@@ -95,7 +93,6 @@ export function FixSuggestions({ deploymentId }: FixSuggestionsProps) {
         throw new Error("Failed to mark as applied");
       }
 
-      // Update local state
       setSuggestions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, status: "applied" } : s))
       );

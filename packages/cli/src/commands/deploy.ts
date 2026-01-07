@@ -24,20 +24,8 @@ export async function deploy() {
   const spinner = ora('Compressing project...').start();
   const zip = new AdmZip();
   
-  // Add files, ignoring node_modules and .git
-  // For MVP, we'll just add the whole folder but using a filter function if adm-zip supports it nicely,
-  // or we just manually walk. adm-zip addLocalFolder is recursive.
-  // Limitation: addLocalFolder doesn't support filter easily in all versions.
-  // Let's rely on server-side ignore or just be careful. 
-  // BETTER: Use a explicit list of files or a smarter zipper.
-  // FOR MVP: We will assume the user isn't deploying node_modules (or we let it upload, it's just slow).
-  // Actually, let's try to exclude node_modules via addLocalFolder's filter regex if available, 
-  // or just warn the user.
-  // Warning: uploading node_modules is bad.
   
-  // Implementation Note: adm-zip addLocalFolder(path, zipPath, filterRegExp)
   zip.addLocalFolder(cwd, undefined, (filename) => {
-      // Return true to include
       if (filename.includes('node_modules') || filename.includes('.git') || filename.includes('.next')) return false;
       return true;
   });
@@ -52,7 +40,7 @@ export async function deploy() {
   try {
     const form = new FormData();
     form.append('file', zipBuffer, { filename: 'deployment.zip' });
-    form.append('projectName', folderName); // Auto-create project with folder name
+    form.append('projectName', folderName);
 
     const response = await axios.post(`${API_URL}/deploy`, form, {
       headers: {
@@ -70,7 +58,7 @@ export async function deploy() {
     console.log(chalk.gray('Waiting for build logs...\n'));
 
     // 3. Stream Logs
-    const socket = io('http://localhost:3000'); // Connect to API Server (which proxies log events or we connect to build worker directly? Previously build worker emitted to API. API emits to client.)
+    const socket = io('http://localhost:3000');
 
     socket.on('connect', () => {
         socket.emit('subscribe-deployment', deploymentId);
@@ -83,7 +71,6 @@ export async function deploy() {
         }
     });
     
-    // Wait for completion (status update)
     socket.on('deployment-update', (data: any) => {
          if (data.deploymentId === deploymentId) {
              if (data.status === 'ready') {

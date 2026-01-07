@@ -2,7 +2,6 @@ import { containerService } from "../src/services/container.service";
 import fs from "fs";
 import path from "path";
 
-// Mock environment
 process.env.DOCKER_SOCKET_PATH = "/Users/raghavender/.docker/run/docker.sock";
 
 async function verify() {
@@ -11,7 +10,6 @@ async function verify() {
     const mockDeploymentId = "verify-" + Date.now();
     const mockPath = path.resolve("/tmp/titan-verify");
     
-    // Create a mock server file
     if (!fs.existsSync(mockPath)) fs.mkdirSync(mockPath, { recursive: true });
     
     const serverJs = `

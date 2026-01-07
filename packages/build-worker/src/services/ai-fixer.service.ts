@@ -14,7 +14,6 @@ export class AIFixerService {
   private isEnabled: boolean;
 
   constructor() {
-    // Check if AI is enabled via environment variable
     this.isEnabled = process.env.ENABLE_AI_FIXER === 'true';
 
     if (this.isEnabled) {
@@ -51,7 +50,6 @@ export class AIFixerService {
 
       const startTime = Date.now();
 
-      // Build context for AI analysis
       const context: BuildContext = {
         deploymentId,
         projectId: job.projectId,
@@ -61,7 +59,6 @@ export class AIFixerService {
         framework: job.framework,
       };
 
-      // Get AI suggestions
       const suggestions = await this.aiService.analyzeBuildError(errorMessage, context);
 
       const duration = Date.now() - startTime;
@@ -72,7 +69,6 @@ export class AIFixerService {
         durationMs: duration,
       });
 
-      // Save suggestions to database
       await this.saveSuggestions(deploymentId, errorMessage, suggestions);
 
       logger.info('Fix suggestions saved', {
@@ -83,7 +79,6 @@ export class AIFixerService {
       logger.error('AI analysis failed', error instanceof Error ? error : new Error(String(error)), {
         deploymentId,
       });
-      // Don't throw - AI analysis failure shouldn't break the build process
     }
   }
 
@@ -95,7 +90,6 @@ export class AIFixerService {
     errorMessage: string,
     suggestions: FixSuggestion[]
   ): Promise<void> {
-    // Create fix suggestions in database
     const createPromises = suggestions.map((suggestion) =>
       prisma.aIFixSuggestion.create({
         data: {
@@ -130,5 +124,4 @@ export class AIFixerService {
   }
 }
 
-// Export singleton instance
 export const aiFixerService = new AIFixerService();

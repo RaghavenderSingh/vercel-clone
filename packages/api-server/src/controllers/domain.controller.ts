@@ -18,8 +18,6 @@ export const addDomain = async (
     }
 
     // TODO: Validate project ownership if not already handled by middleware or service
-    // Assuming service or subsequent checks handle permission, or we should add a check here.
-    // For now, fast iteration, relying on basic checks. Ideally we should check if user owns project.
 
     const result = await domainService.addDomain(projectId, domain);
     res.status(201).json(result);
@@ -91,6 +89,20 @@ export const getDomains = async (
     }
 
     const domains = await domainService.getDomains(projectId);
+    res.json(domains);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserDomains = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = (req as any).user.id as string;
+    const domains = await domainService.getUserDomains(userId);
     res.json(domains);
   } catch (error) {
     next(error);

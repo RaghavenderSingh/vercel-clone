@@ -14,10 +14,10 @@ export function Stats() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-white/10">
             {[
-              { label: "Uptime", value: "99.99%" },
-              { label: "Deploy Time", value: "< 1s" },
-              { label: "Requests/day", value: "1B+" },
-              { label: "Frameworks", value: "35+" },
+              { label: "Automated Builds", value: "100%", icon: "⚡" },
+              { label: "GitHub Native", value: "Yes", icon: "🔗" },
+              { label: "Deploy Time", value: "~5min", icon: "⏱️" },
+              { label: "AI Powered", value: "Yes", icon: "🤖" },
             ].map((stat, i) => (
               <FadeIn
                 key={i}

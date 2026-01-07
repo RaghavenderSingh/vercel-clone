@@ -1,6 +1,6 @@
 # Titan Platform
 
-Titan is a comprehensive deployment platform offering automated CI/CD pipelines, intelligent error analysis, and robust project management capabilities. It is designed to simulate the core functionality of modern Vercel-like PaaS architectures.
+Titan is an automated deployment platform with GitHub integration, intelligent error analysis, and comprehensive project management. It provides automated CI/CD pipelines, build workers for Node.js and Docker projects, and AI-powered error diagnostics.
 
 ## Architecture
 

@@ -6,10 +6,12 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -24,6 +26,7 @@ model User {
   projects      Project[]
   conversations AIConversation[]
   aiUsage       AIUsage[]
+  activities    Activity[]
 
   @@index([email])
 }
@@ -42,7 +45,10 @@ model Project {
   buildConfig   BuildConfig?
   conversations AIConversation[]
   codeAnalyses  CodeAnalysis[]
+  activities    Activity[]
+  usages        ProjectUsage[]
 
+  @@unique([userId, repoUrl])
   @@index([userId])
 }
 
@@ -193,4 +199,33 @@ model AIUsage {
 
   @@index([userId])
   @@index([feature])
+}
+model ProjectUsage {
+  id            String   @id @default(uuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requests      Int      @default(0)
+  bandwidth     BigInt   @default(0) // bytes
+  invocations   Int      @default(0)
+  date          DateTime @default(now())
+
+  @@unique([projectId, date])
+  @@index([projectId])
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  type      String   // deployment, project, settings, security, domain
+  action    String   // created, updated, deleted, deployed, blocked
+  target    String   // name of the project, domain, etc.
+  metadata  String?  // additional info (branch name, commit sha, etc.)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([type])
 }

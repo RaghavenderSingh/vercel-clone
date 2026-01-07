@@ -20,7 +20,6 @@ export const validateBody = (schema: z.ZodSchema) => {
           details: errors,
         });
       }
-      // If it's not a ZodError, pass it to error handler
       next(error);
     }
   };

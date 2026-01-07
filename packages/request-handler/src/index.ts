@@ -9,6 +9,7 @@ import path from "path";
 import fs from "fs";
 import { containerService } from "./services/container.service";
 import { deploymentCache } from "./services/cache.service";
+import { usageService } from "./services/usage.service";
 import httpProxy from "http-proxy";
 import { createLogger } from "@vercel-clone/shared";
 
@@ -17,11 +18,33 @@ const logger = createLogger('request-handler');
 const app = express();
 const port = process.env.PORT || 3001;
 const proxy = httpProxy.createProxyServer({
-  timeout: 30000,      // 30 second timeout
-  proxyTimeout: 30000  // 30 second proxy timeout
+  timeout: 30000,
+  proxyTimeout: 30000
 });
 
-// Handle proxy errors globally
+proxy.on('proxyReq', (proxyReq, req, res, options) => {
+    if (options.target) {
+        let port;
+        if (typeof options.target === 'string') {
+            const url = new URL(options.target);
+            port = url.port;
+        } else {
+            port = (options.target as any).port;
+        }
+        proxyReq.setHeader('Host', `localhost:${port}`);
+    }
+});
+
+proxy.on('proxyRes', (proxyRes, req, res) => {
+    const headersToDedupe = ['date', 'server', 'connection'];
+    for (const header of headersToDedupe) {
+        if (proxyRes.headers[header] && Array.isArray(proxyRes.headers[header])) {
+            proxyRes.headers[header] = (proxyRes.headers[header] as string[])[0];
+        }
+    }
+    delete proxyRes.headers['transfer-encoding'];
+});
+
 proxy.on('error', (err, req, res) => {
   logger.error('Proxy error', err, { url: req.url, method: req.method });
   if (res && 'headersSent' in res && !res.headersSent) {
@@ -52,8 +75,6 @@ app.all("*", async (req, res) => {
     try {
         let deployment;
 
-        // 1. Try Resolve by Custom Domain
-        // Remove port from host if present for domain lookup
         const domainName = host.split(':')[0];
         const domainRecord = await prisma.domain.findUnique({
             where: { domain: domainName },
@@ -67,16 +88,13 @@ app.all("*", async (req, res) => {
             logger.debug('Resolved custom domain', { domain: domainName, projectId: domainRecord.projectId, deploymentId: deployment?.id });
         }
 
-        // 2. Fallback to Subdomain/ID resolution
         if (!deployment) {
-            // First check if it is a direct deployment ID
             deployment = await prisma.deployment.findUnique({
                 where: { id: subdomain },
             });
         }
 
         if (!deployment) {
-            // Try finding by project name (subdomain)
             const project = await prisma.project.findFirst({
                 where: { name: subdomain },
             });
@@ -94,8 +112,7 @@ app.all("*", async (req, res) => {
             return;
         }
 
-        // 2. Check Deployment Status
-        if (deployment.status !== "ready") {
+        if (deployment.status.toLowerCase() !== "ready") {
             const status = deployment.status.toLowerCase();
             const message = status === "error" 
                 ? "Deployment failed. Please check build logs." 
@@ -113,12 +130,10 @@ app.all("*", async (req, res) => {
             return;
         }
 
-        // 3. Determine Deployment Type
         const s3Key = deployment.s3Key || "";
         const outputDir = path.join("/tmp/deployments", deployment.id);
         const startTime = Date.now();
 
-        // 3. Get / Start Container (Handles download if needed via mutex)
         try {
             const containerStart = Date.now();
             const containerPort = await containerService.getPort(deployment.id, s3Key, outputDir);
@@ -132,25 +147,15 @@ app.all("*", async (req, res) => {
                 containerPort
             });
 
-            // Listen to proxyReq to modify headers before sending to container
-            proxy.once('proxyReq', (proxyReq, _request, _response) => {
-                // Fix Host header to localhost instead of subdomain
-                proxyReq.setHeader('Host', `localhost:${containerPort}`);
-            });
-
-            // 4. Proxy to Container with retry logic
-            let retries = 20; // Increased to 20 retries (~30 seconds) to handle slower cold starts
+            let retries = 20;
             const attemptProxy = () => {
                 proxy.web(req, res, {
                     target: `http://host.docker.internal:${containerPort}`,
                     changeOrigin: false,
-                    preserveHeaderKeyCase: false,
-                    followRedirects: false,
-                    ignorePath: false,
+                    xfwd: true,
                 }, (err) => {
                     if (err && retries > 0 && !res.headersSent) {
                         retries--;
-                        // Only log warning every 5 retries to avoid log spam
                         if (retries % 5 === 0) {
                             logger.warn('Proxy attempt failed, retrying...', {
                                 remainingRetries: retries,
@@ -158,7 +163,7 @@ app.all("*", async (req, res) => {
                                 error: err.message
                             });
                         }
-                        setTimeout(attemptProxy, 1500); // Retry after 1.5 seconds
+                        setTimeout(attemptProxy, 1500);
                     } else if (err) {
                         logger.error('All proxy retries failed', err, { containerPort });
                         if (!res.headersSent) {
@@ -170,10 +175,14 @@ app.all("*", async (req, res) => {
                     }
                 });
             };
-            const proxyStart = Date.now();
             attemptProxy();
-            // Note: attemptProxy handles the response, but we can log total time here if we returned a promise, but we don't.
-            logger.debug('Total handler duration explicitly tracked', { totalMs: Date.now() - startTime });
+            
+            const bytesReceived = parseInt(req.headers['content-length'] || '0', 10);
+            usageService.logRequest(deployment.projectId, bytesReceived).catch(err => {
+                logger.error('Background usage logging failed', err);
+            });
+
+            logger.debug('Proxy initialized', { totalMs: Date.now() - startTime });
 
         } catch (error) {
             logger.error('Runtime error starting container', error instanceof Error ? error : new Error(String(error)), {
@@ -196,23 +205,21 @@ const server = app.listen(port, () => {
   logger.info('Request Handler started', { port, service: 'request-handler' });
 });
 
-// Background job: Clean up inactive containers every 5 minutes
 setInterval(async () => {
   try {
     logger.info('Running container cleanup job');
-    await containerService.evictInactive(30); // Evict containers idle for 30+ minutes
-    await containerService.cleanupOrphans(); // Cleanup orphaned containers
+    await containerService.evictInactive(30);
+    await containerService.cleanupOrphans();
     logger.info('Container cleanup completed');
   } catch (error) {
     logger.error('Container cleanup error', error instanceof Error ? error : new Error(String(error)));
   }
-}, 5 * 60 * 1000); // Every 5 minutes
+}, 5 * 60 * 1000);
 
-// Background job: Clean up old cached deployments every 10 minutes
 setInterval(async () => {
   try {
     logger.info('Running cache cleanup job');
-    await deploymentCache.cleanupOld(60); // Remove deployments not accessed in 60+ minutes
+    await deploymentCache.cleanupOld(60);
     const stats = deploymentCache.getStats();
     logger.info('Cache cleanup completed', {
       entries: stats.entries,
@@ -222,18 +229,15 @@ setInterval(async () => {
   } catch (error) {
     logger.error('Cache cleanup error', error instanceof Error ? error : new Error(String(error)));
   }
-}, 10 * 60 * 1000); // Every 10 minutes
+}, 10 * 60 * 1000);
 
-// Graceful shutdown handlers
 const gracefulShutdown = async (signal: string) => {
   logger.info('Received shutdown signal', { signal });
 
-  // Stop accepting new connections
   server.close(() => {
     logger.info('HTTP server closed');
   });
 
-  // Stop all containers
   try {
     await containerService.stopAll();
     logger.info('All containers stopped');
@@ -245,4 +249,4 @@ const gracefulShutdown = async (signal: string) => {
 };
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT")); // Ctrl+C
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));

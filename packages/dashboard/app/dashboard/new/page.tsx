@@ -46,7 +46,6 @@ export default function NewProjectPage() {
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // Initialize step based on URL param
   const [step, setStep] = useState(1);
   const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([{ key: "", value: "" }]);
   
@@ -74,8 +73,7 @@ export default function NewProjectPage() {
       setFilteredRepos(data);
       detectFrameworksForList(data);
       
-      // Handle deep link
-      const repoNameFromUrl = searchParams.get('repo');
+      const repoNameFromUrl = searchParams?.get('repo');
       if (repoNameFromUrl) {
         const found = data.find(r => r.full_name === repoNameFromUrl);
         if (found) {

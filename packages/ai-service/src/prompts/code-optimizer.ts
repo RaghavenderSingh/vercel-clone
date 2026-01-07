@@ -42,7 +42,7 @@ export function buildCodeOptimizerPrompt(
     .join('\n');
 
   const filesContent = files
-    .slice(0, 20) // Limit to first 20 files to avoid context overflow
+    .slice(0, 20)
     .map(
       (f) => `
 === ${f.path} ===

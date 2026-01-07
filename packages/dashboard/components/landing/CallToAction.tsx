@@ -37,7 +37,7 @@ export function CallToAction() {
               </h2>
               <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
                 Import your GitHub repository and get your project online in
-                minutes. No credit card required. Experience the power of our global edge network.
+                minutes. Free to start, with automated builds and deployments.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-6">
                 <Link href={status === "authenticated" ? "/dashboard" : "/login"}>
@@ -48,13 +48,6 @@ export function CallToAction() {
                     {status === "authenticated" ? "Go to Dashboard" : "Start for Free"}
                   </Button>
                 </Link>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-14 px-10 text-lg bg-black/20 border-white/10 hover:bg-white/5 text-white rounded-full backdrop-blur-sm transition-all duration-300 hover:scale-105"
-                >
-                  Contact Sales
-                </Button>
               </div>
             </div>
           </motion.div>

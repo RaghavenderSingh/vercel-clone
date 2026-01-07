@@ -19,7 +19,6 @@ async function verify() {
   console.log("\n🧪 functionality Test: Running 'echo hello' in node:20-alpine...");
   
   try {
-    // Check if we need to pull the image
     const images = await docker.listImages();
     const hasImage = images.some(img => img.RepoTags?.includes("node:20-alpine"));
     
@@ -34,7 +33,6 @@ async function verify() {
                     resolve(output);
                 }
                 function onProgress(event: any) {
-                    // console.log(event); // verbose
                 }
             });
         });

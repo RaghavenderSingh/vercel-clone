@@ -1,16 +1,43 @@
 services:
+  nginx:
+    image: nginx:latest
+    container_name: titan-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - dashboard
+      - api-server
+      - request-handler
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: titan-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done'"
+
   dashboard:
     build:
       context: .
       target: dashboard-runner
+      args:
+        NEXT_PUBLIC_API_URL: https://api.titan.curiousdev.xyz/api
     restart: always
     ports:
       - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/vercel_clone?schema=public
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
-      - NEXT_PUBLIC_API_URL=/api
+      - NEXTAUTH_URL=https://titan.curiousdev.xyz
+      - NEXT_PUBLIC_API_URL=https://api.titan.curiousdev.xyz/api
       - INTERNAL_API_URL=http://api-server:3001
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
@@ -24,6 +51,11 @@ services:
     restart: always
     ports:
       - "3001:3001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./nginx/conf.d:/app/nginx/conf.d
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     environment:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/vercel_clone?schema=public
       - REDIS_URL=redis://redis:6379
@@ -31,7 +63,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - S3_BUCKET=${S3_BUCKET}
       - AWS_REGION=${AWS_REGION:-us-east-1}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - FRONTEND_URL=https://titan.curiousdev.xyz
       - JWT_SECRET=${JWT_SECRET}
       - PORT=3001
     depends_on:
@@ -88,16 +120,16 @@ services:
       POSTGRES_USER: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
 
   redis:
     image: redis:alpine
     restart: always
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
 
 volumes:
   postgres_data:

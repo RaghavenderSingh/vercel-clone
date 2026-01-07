@@ -20,19 +20,16 @@ export function DeploymentLogs({ deploymentId, initialLogs, status }: Deployment
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  // Initialize logs from props
   useEffect(() => {
     if (initialLogs) {
       setLogs(initialLogs.split('\n'));
     }
   }, [initialLogs]);
 
-  // Subscribe to live logs
   useDeploymentLogs(deploymentId, (log) => {
     setLogs((prev) => [...prev, log]);
   });
 
-  // Auto-scroll to bottom
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
       const scrollElement = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
@@ -156,8 +153,6 @@ export function DeploymentLogs({ deploymentId, initialLogs, status }: Deployment
 }
 
 function formatLogLine(log: string) {
-    // Simple ANSI color parsing could go here if needed, 
-    // or basic formatting based on keywords.
     if (log.includes('ERROR') || log.includes('Error') || log.includes('failed')) {
         return <span className="text-red-400">{log}</span>;
     }

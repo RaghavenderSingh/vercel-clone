@@ -17,11 +17,9 @@ export const CreateDeploymentSchema = z.object({
     .max(500, 'Commit message is too long')
     .optional(),
 }).refine((data) => {
-  // For git deployments, enforce strict SHA validation
   if (data.type === 'git') {
     return /^[a-f0-9]{7,40}$/i.test(data.commitSha);
   }
-  // For manual deployments, allow any non-empty string
   return true;
 }, {
   message: 'Invalid commit SHA format for git deployment. Must be 7-40 hexadecimal characters.',

@@ -67,20 +67,35 @@ export class S3Service {
 
              await mkdir(dirName, { recursive: true });
              
-             const fileData = await this.s3.getObject({
-                  Bucket: this.bucket,
-                  Key: key
-             }).promise();
+             for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const downloadPromise = this.s3.getObject({
+                        Bucket: this.bucket,
+                        Key: key
+                    }).promise();
 
-             if (fileData.Body) {
-                  await writeFile(filePath, fileData.Body as Buffer);
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error("Download timeout")), 10000)
+                    );
+
+                    const fileData = await Promise.race([downloadPromise, timeoutPromise]) as AWS.S3.GetObjectOutput;
+
+                    if (fileData.Body) {
+                        await writeFile(filePath, fileData.Body as Buffer);
+                    }
+                    break;
+                } catch (e) {
+                    if (attempt === 3) {
+                        console.error(`Failed to download ${key} after 3 attempts:`, e);
+                        throw e;
+                    }
+                    await new Promise(r => setTimeout(r, 1000 * attempt));
+                }
              }
         }));
-        // Optional: Progress log
         if ((i + BATCH_SIZE) % 100 === 0) console.log(`Downloaded ${i + BATCH_SIZE}/${allKeys.length}...`);
     }
 
-    // Write a marker file to signal download completion
     await writeFile(path.join(outputDir, ".ready"), "");
 
     console.log(`Downloaded deployment ${deploymentId} successfully.`);

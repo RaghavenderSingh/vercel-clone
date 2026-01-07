@@ -1,6 +1,7 @@
 import { prisma } from "@titan/db";
 import { DeploymentStatus, type BuildJob } from "../types";
 import { addBuildJob, removeJob } from "./queue.service";
+import * as activityService from "./activity.service";
 
 export async function createDeployment(
   projectId: string,
@@ -21,13 +22,11 @@ export async function createDeployment(
       branch,
       commitMessage,
       status: DeploymentStatus.QUEUED,
-      deploymentUrl: "", // Will be updated after we have the deployment ID
-    },
+      deploymentUrl: "",    },
   });
 
-  // Update deployment URL with the deployment ID
-  const requestHandlerDomain = process.env.REQUEST_HANDLER_DOMAIN || "localhost:3002";
-  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+  const requestHandlerDomain = process.env.REQUEST_HANDLER_DOMAIN || "titan.curiousdev.xyz";
+  const protocol = process.env.ID_PROTOCOL || "http";
   const updatedDeployment = await prisma.deployment.update({
     where: { id: deployment.id },
     data: {
@@ -45,6 +44,15 @@ export async function createDeployment(
     envVars: project.buildConfig?.envVars as Record<string, string>,
   };
   await addBuildJob(buildJob);
+
+  await activityService.createActivity({
+    type: "deployment",
+    action: "deployed",
+    target: project.name,
+    metadata: `${branch} (${commitSha.slice(0, 7)})`,
+    userId: project.userId,
+    projectId: project.id,
+  });
 
   return updatedDeployment;
 }

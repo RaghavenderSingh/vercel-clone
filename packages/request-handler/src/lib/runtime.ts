@@ -27,8 +27,6 @@ class RuntimeManager {
     
     console.log(`[Runtime] Starting ${deploymentId} on port ${port} with ${startCommand.cmd} ${startCommand.args.join(" ")}...`);
     
-    // Inject PORT and HOSTNAME into args if needed, or rely on env
-    // Next.js needs -p flag usually if PORT env not respected (it respects PORT env though)
     
     const child = spawn(startCommand.cmd, startCommand.args, {
       env: { ...process.env, PORT: String(port), HOSTNAME: "0.0.0.0" },
@@ -54,7 +52,6 @@ class RuntimeManager {
 
     this.instances.set(deploymentId, instance);
 
-    // Wait for port to be ready (simple delay for MVP, better to check connection)
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     return port;

@@ -25,9 +25,9 @@ export interface createProjectDto {
   
   export interface BuildJob {
     deploymentId: string;
-    projectId?: string; // Optional as it might be used differently in different contexts or strict
+    projectId?: string;
     repoUrl: string;
-    commitSha?: string; // Optional if zip
+    commitSha?: string;
     branch: string;
     buildCommand: string;
     installCommand: string;

@@ -24,7 +24,7 @@ async function run() {
         CallerReference: `invalidate-${Date.now()}`,
         Paths: {
           Quantity: 1,
-          Items: ["/*"], // Invalidate everything
+          Items: ["/*"],
         },
       },
     };

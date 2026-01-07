@@ -42,7 +42,6 @@ uniform float uFogFallSpeed;
 uniform vec3 uColor;
 uniform float uFade;
 
-// Core beam/flare shaping and dynamics
 #define PI 3.14159265359
 #define TWO_PI 6.28318530718
 #define EPS 1e-6
@@ -59,7 +58,6 @@ uniform float uFade;
 #define FLOW_PERIOD 0.5
 #define FLOW_SHARPNESS 1.5
 
-// Wisps (animated micro-streaks) that travel along the beam
 #define W_BASE_X 1.5
 #define W_LAYER_GAP 0.25
 #define W_LANES 10
@@ -73,7 +71,6 @@ uniform float uFade;
 #define W_CURVE_RANGE (FLARE_HEIGHT - 3.0)
 #define W_BOTTOM_EXP 10.0
 
-// Volumetric fog controls
 #define FOG_ON 1
 #define FOG_CONTRAST 1.2
 #define FOG_SPEED_U 0.1
@@ -90,14 +87,12 @@ uniform float uFade;
 #define FOG_EXPAND_SHAPE 12.2
 #define FOG_EDGE_MIX 0.5
 
-// Horizontal vignette for the fog volume
 #define HFOG_EDGE_START 0.20
 #define HFOG_EDGE_END 0.98
 #define HFOG_EDGE_GAMMA 1.4
 #define HFOG_Y_RADIUS 25.0
 #define HFOG_Y_SOFT 60.0
 
-// Beam extents and edge masking
 #define EDGE_X0 0.22
 #define EDGE_X1 0.995
 #define EDGE_X_GAMMA 1.25
@@ -134,7 +129,7 @@ uniform float uFade;
     float vWisps(vec2 uv,float topF){
     float y=uv.y,yf=(y+uFlowTime*uWSpeed)/W_CELL;
     float dRaw=clamp(uWispDensity,0.0,2.0),d=dRaw<=0.0?1.0:dRaw;
-    float lanesF=floor(float(W_LANES)*min(d,1.0)+0.5); // WebGL1-safe
+    float lanesF=floor(float(W_LANES)*min(d,1.0)+0.5);
     int lanes=int(max(1.0,lanesF));
     float sp=min(d,1.0),ep=max(d-1.0,0.0);
     float fm=flareY(max(y,0.0)),rm=clamp(1.0-(y/max(W_CURVE_RANGE,EPS)),0.0,1.0),cm=fm*rm;
@@ -558,7 +553,6 @@ export const LaserFlow = ({
       renderer.dispose();
       if (mount.contains(canvas)) mount.removeChild(canvas);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dpr]);
 
   useEffect(() => {

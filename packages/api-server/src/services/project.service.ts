@@ -1,11 +1,23 @@
 import { prisma } from "@titan/db";
 import type { createProjectDto } from "../types";
 import { createDeployment } from "./deployment.service";
+import * as activityService from "./activity.service";
 import { createLogger } from "@vercel-clone/shared";
 
 const logger = createLogger('api-server');
 
 export async function createProject(userId: string, data: createProjectDto) {
+  const existingProject = await prisma.project.findFirst({
+    where: {
+      userId,
+      repoUrl: data.repoUrl,
+    },
+  });
+
+  if (existingProject) {
+    throw new Error("This repository has already been added to your projects");
+  }
+
   const project = await prisma.project.create({
     data: {
       name: data.name,
@@ -25,7 +37,15 @@ export async function createProject(userId: string, data: createProjectDto) {
     },
   });
 
-  // Trigger initial deployment
+  await activityService.createActivity({
+    type: "project",
+    action: "created",
+    target: project.name,
+    metadata: project.framework,
+    userId,
+    projectId: project.id,
+  });
+
   if (data.defaultBranch) {
     try {
         await createDeployment(project.id, "initial-import", data.defaultBranch, "Initial import");
@@ -34,7 +54,6 @@ export async function createProject(userId: string, data: createProjectDto) {
           projectId: project.id,
           defaultBranch: data.defaultBranch
         });
-        // Don't fail the request, just log it. The project was created.
     }
   }
 
@@ -68,9 +87,26 @@ export async function getProjectById(projectId: string, userId: string) {
 }
 
 export async function deleteProject(projectId: string, userId: string) {
-  return prisma.project.delete({
-    where: { id: projectId, userId },
+  const project = await prisma.project.findFirst({ 
+    where: { id: projectId, userId } 
   });
+  
+  if (!project) {
+    throw new Error("Project not found or unauthorized");
+  }
+  
+  const result = await prisma.project.delete({
+    where: { id: projectId },
+  });
+
+  await activityService.createActivity({
+    type: "project",
+    action: "deleted",
+    target: project.name,
+    userId,
+  });
+
+  return result;
 }
 
 export async function updateBuildConfig(

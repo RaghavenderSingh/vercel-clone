@@ -36,27 +36,29 @@ export default function DeploymentLogsPage() {
   const { connected } = useSocket();
   const [liveLogs, setLiveLogs] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetchDeployment();
-  }, [params.id]);
+  const id = params?.id as string;
 
-  // Real-time Updates
-  useDeploymentUpdates(params.id as string, (data) => {
-    if (data.deploymentId === params.id) {
+  useEffect(() => {
+    if (id) fetchDeployment();
+  }, [id]);
+
+  useDeploymentUpdates(id, (data) => {
+    if (data.deploymentId === id) {
       setDeployment((prev) => (prev ? { ...prev, status: data.status } : prev));
       if (data.status === 'ready' && !deployment?.deploymentUrl) {
-          fetchDeployment(); // Refresh to get URL if it was missing 
+          fetchDeployment();
       }
     }
   });
 
-  useDeploymentLogs(params.id as string, (log) => {
+  useDeploymentLogs(id, (log) => {
     setLiveLogs((prev) => [...prev, log]);
   });
 
   const fetchDeployment = async () => {
     try {
-      const { data } = await deploymentsAPI.get(params.id as string);
+      if (!id) return;
+      const { data } = await deploymentsAPI.get(id);
       setDeployment(data);
     } catch (error) {
       console.error("Failed to fetch deployment:", error);
@@ -68,7 +70,6 @@ export default function DeploymentLogsPage() {
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-muted-foreground" /></div>;
   if (!deployment) return <div className="h-screen flex items-center justify-center">Deployment not found</div>;
 
-  // Combine historical and live logs
   const allLogs = [
       ...(deployment.buildLogs ? deployment.buildLogs.split('\n') : []),
       ...liveLogs

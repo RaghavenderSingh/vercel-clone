@@ -1,7 +1,7 @@
 import AdmZip from "adm-zip";
 import path from "path";
 
-const MAX_UNCOMPRESSED_SIZE = 500 * 1024 * 1024; // 500MB
+const MAX_UNCOMPRESSED_SIZE = 500 * 1024 * 1024;
 const MAX_FILE_COUNT = 10000;
 
 export interface ZipValidationResult {
@@ -34,10 +34,8 @@ export function validateZip(zipPath: string): ZipValidationResult {
     let totalUncompressedSize = 0;
 
     for (const entry of entries) {
-      // Check for path traversal
       const normalizedPath = path.normalize(entry.entryName);
 
-      // Detect path traversal attempts
       if (normalizedPath.startsWith("..") || path.isAbsolute(normalizedPath)) {
         return {
           valid: false,
@@ -45,7 +43,6 @@ export function validateZip(zipPath: string): ZipValidationResult {
         };
       }
 
-      // Check for suspicious paths
       if (normalizedPath.includes("../") || normalizedPath.includes("..\\")) {
         return {
           valid: false,
@@ -53,10 +50,8 @@ export function validateZip(zipPath: string): ZipValidationResult {
         };
       }
 
-      // Accumulate uncompressed size
       totalUncompressedSize += entry.header.size;
 
-      // Check for zip bomb
       if (totalUncompressedSize > MAX_UNCOMPRESSED_SIZE) {
         return {
           valid: false,
@@ -64,7 +59,6 @@ export function validateZip(zipPath: string): ZipValidationResult {
         };
       }
 
-      // Check compression ratio for each file (another zip bomb indicator)
       if (entry.header.size > 0 && entry.header.compressedSize > 0) {
         const compressionRatio = entry.header.size / entry.header.compressedSize;
         if (compressionRatio > 100) {

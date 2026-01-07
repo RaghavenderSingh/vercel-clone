@@ -17,7 +17,6 @@ export class GeminiProvider implements AIProvider {
 
     this.client = new GoogleGenerativeAI(config.apiKey);
 
-    // Default to Gemini 2.5 Flash (stable, fast, higher free tier limits)
     this.model = config.model || 'gemini-2.5-flash';
   }
 
@@ -41,7 +40,6 @@ export class GeminiProvider implements AIProvider {
       },
     });
 
-    // Combine system prompt and user prompt for Gemini
     const fullPrompt = request.systemPrompt
       ? `${request.systemPrompt}\n\nUser: ${request.prompt}`
       : request.prompt;
@@ -68,7 +66,6 @@ export class GeminiProvider implements AIProvider {
       },
     });
 
-    // Combine system prompt and user prompt for Gemini
     const fullPrompt = request.systemPrompt
       ? `${request.systemPrompt}\n\nUser: ${request.prompt}`
       : request.prompt;
@@ -77,7 +74,6 @@ export class GeminiProvider implements AIProvider {
     const response = result.response;
     const content = response.text();
 
-    // Extract token counts if available
     const usageMetadata = (response as any).usageMetadata;
     const tokens = usageMetadata
       ? {

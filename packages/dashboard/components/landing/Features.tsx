@@ -65,8 +65,8 @@ export function Features() {
 
           <FadeIn delay={0.3} className="md:col-span-4 md:row-span-1 h-full">
             <FeatureCard
-              title="Next.js Optimization"
-              description="Built by the creators of Next.js for the best performance. Fully integrated with App Router and Server Components for the best developer experience."
+              title="Framework Support"
+              description="Optimized for modern frameworks including Next.js, React, and more. Fully integrated with App Router and Server Components for seamless deployment."
               icon={<Cpu className="w-6 h-6" />}
               className="flex-row items-center gap-8"
               showMarkers
@@ -75,8 +75,8 @@ export function Features() {
 
           <FadeIn delay={0.4} className="md:col-span-2 md:row-span-1 h-full">
             <FeatureCard
-              title="Edge Network"
-              description="Your content is automatically cached and served from 100+ locations worldwide."
+              title="Smart Caching"
+              description="Intelligent caching and content delivery to ensure fast load times for your applications."
               icon={<Globe className="w-6 h-6" />}
             />
           </FadeIn>

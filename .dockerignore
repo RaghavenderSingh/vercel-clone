@@ -1,0 +1,12 @@
+node_modules
+.git
+certbot
+nginx/conf.d
+postgres_data
+redis_data
+*.log
+.env
+dist
+.next
+.agent
+brain

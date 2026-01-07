@@ -36,7 +36,6 @@ export class AIService {
   constructor(providerType: AIProviderType = 'claude', config?: Partial<ProviderConfig>) {
     this.providerType = providerType;
 
-    // Get API key from environment or config
     const apiKey = config?.apiKey || this.getApiKeyFromEnv(providerType);
 
     const providerConfig: ProviderConfig = {
@@ -46,7 +45,6 @@ export class AIService {
       timeout: config?.timeout || 60000,
     };
 
-    // Initialize the appropriate provider
     this.provider =
       providerType === 'claude'
         ? new ClaudeProvider(providerConfig)
@@ -114,19 +112,17 @@ export class AIService {
     const response = await this.completion({
       prompt: userPrompt,
       systemPrompt,
-      temperature: 0.3, // Lower temperature for more focused, deterministic responses
+      temperature: 0.3,
       maxTokens: 4096,
     });
 
     try {
-      // Try to parse JSON response
       const jsonMatch = response.content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const suggestions = JSON.parse(jsonMatch[0]);
         return suggestions as FixSuggestion[];
       }
 
-      // Fallback: Return response as a single suggestion
       return [
         {
           title: 'Build Error Analysis',
@@ -164,18 +160,16 @@ export class AIService {
       prompt: userPrompt,
       systemPrompt,
       temperature: 0.4,
-      maxTokens: 8192, // Higher token limit for code analysis
+      maxTokens: 8192,
     });
 
     try {
-      // Try to parse JSON response
       const jsonMatch = response.content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const recommendations = JSON.parse(jsonMatch[0]);
         return recommendations as OptimizationRecommendation[];
       }
 
-      // Fallback: Return response as a single recommendation
       return [
         {
           category: 'best-practices',
@@ -229,13 +223,11 @@ export class AIService {
   }
 }
 
-// Export everything
 export * from './types';
 export * from './providers/base';
 export { ClaudeProvider } from './providers/claude';
 export { GeminiProvider } from './providers/gemini';
 
-// Convenience function to create AI service from environment
 export function createAIService(
   providerType?: AIProviderType,
   config?: Partial<ProviderConfig>

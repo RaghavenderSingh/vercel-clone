@@ -8,7 +8,7 @@ interface CacheEntry {
   lastAccess: number;
 }
 
-const MAX_CACHE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
+const MAX_CACHE_SIZE = 5 * 1024 * 1024 * 1024;
 const CACHE_BASE_DIR = "/tmp/deployments";
 
 export class DeploymentCache {
@@ -23,7 +23,6 @@ export class DeploymentCache {
     if (entry) {
       entry.lastAccess = Date.now();
     } else {
-      // First access - calculate size and add to cache
       const deploymentPath = path.join(CACHE_BASE_DIR, deploymentId);
       try {
         const size = await this.getDirectorySize(deploymentPath);
@@ -35,7 +34,6 @@ export class DeploymentCache {
         });
         this.totalSize += size;
 
-        // Evict if necessary
         await this.evictIfNeeded();
       } catch (error) {
         console.error(`Failed to cache entry for ${deploymentId}:`, error);
@@ -54,7 +52,6 @@ export class DeploymentCache {
     console.log(`[Cache] Size exceeded: ${this.formatBytes(this.totalSize)}/${this.formatBytes(MAX_CACHE_SIZE)}`);
     console.log(`[Cache] Starting LRU eviction...`);
 
-    // Sort by last access time (oldest first)
     const sorted = Array.from(this.cache.values()).sort(
       (a, b) => a.lastAccess - b.lastAccess
     );
@@ -63,7 +60,6 @@ export class DeploymentCache {
 
     for (const entry of sorted) {
       if (this.totalSize <= MAX_CACHE_SIZE * 0.8) {
-        // Evict until we're at 80% capacity
         break;
       }
 

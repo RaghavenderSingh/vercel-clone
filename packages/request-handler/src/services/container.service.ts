@@ -56,7 +56,6 @@ export class ContainerService {
                 } else {
                     logger.debug('Cache hit - deployment ready', { deploymentId });
                 }
-                // Mark as accessed for LRU cache management
                 await deploymentCache.markAccessed(deploymentId);
             }
 
@@ -66,7 +65,6 @@ export class ContainerService {
             let container;
             const createStart = Date.now();
 
-            // Cleanup any existing container with this name first (safety)
             try {
                 const existing = docker.getContainer(containerName);
                 await existing.stop({ t: 1 }).catch(() => {});
@@ -163,7 +161,6 @@ export class ContainerService {
         const startTime = Date.now();
         while (Date.now() - startTime < timeout) {
             try {
-                // Periodically check if container is still running
                 if (containerId && Date.now() % 2000 < 200) {
                     const container = docker.getContainer(containerId);
                     const state = await container.inspect();
@@ -172,18 +169,15 @@ export class ContainerService {
                     }
                 }
 
-                // Use host.docker.internal to reach the host port from within the handler container
                 const response = await fetch(`http://host.docker.internal:${port}/`, {
                     signal: AbortSignal.timeout(1000)
                 });
-                // If we get any response (even 404), the server is running
                 if (response.ok || response.status === 404) {
                     logger.info('Container healthy', { deploymentId, port });
                     return;
                 }
             } catch (e) {
-                // Log the error periodically to debug
-                if (Date.now() % 5000 < 200) { // Log roughly every 5 seconds
+                if (Date.now() % 5000 < 200) {
                     logger.debug('Health check attempt failed', { 
                         deploymentId, 
                         port, 
@@ -191,7 +185,7 @@ export class ContainerService {
                     });
                 }
             }
-            await new Promise(r => setTimeout(r, 200)); // Poll every 200ms
+            await new Promise(r => setTimeout(r, 200));
         }
         throw new Error(`Container failed to become healthy within ${timeout}ms. Check container logs for deployment ${deploymentId}.`);
     }
@@ -229,7 +223,18 @@ export class ContainerService {
             const allContainers = await docker.listContainers({ all: false });
             const orphans = allContainers.filter(c => {
                 const name = c.Names[0] || "";
-                // Only cleanup containers with titan- prefix not in our registry
+                
+                if (
+                    name.includes("titan-dashboard") ||
+                    name.includes("titan-api-server") ||
+                    name.includes("titan-request-handler") ||
+                    name.includes("titan-build-worker") ||
+                    name.includes("titan-postgres") ||
+                    name.includes("titan-redis")
+                ) {
+                    return false;
+                }
+
                 return name.includes("titan-") && !Array.from(this.containers.values()).some(info => info.containerId === c.Id);
             });
 

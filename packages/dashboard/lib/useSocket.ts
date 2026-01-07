@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
-// Socket connects to API server (without /api path)
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
   "http://localhost:3001";
@@ -62,7 +61,6 @@ export function useDeploymentLogs(
   useEffect(() => {
     if (!socket || !deploymentId) return;
 
-    // Subscribe to deployment updates
     socket.emit("subscribe-deployment", deploymentId);
 
     const handleLog = (data: { deploymentId: string; log: string }) => {

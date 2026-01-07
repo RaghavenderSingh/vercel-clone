@@ -3,24 +3,21 @@ import path from "path";
 import fs from "fs";
 
 const UPLOAD_DIR = "/tmp/uploads";
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
-// Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Multer configuration with security limits
 export const uploadMiddleware = multer({
   dest: UPLOAD_DIR,
   limits: {
     fileSize: MAX_FILE_SIZE,
-    files: 1, // Only one file at a time
-    fields: 10, // Maximum number of non-file fields
-    fieldSize: 1024 * 1024, // 1MB max field size
+    files: 1,
+    fields: 10,
+    fieldSize: 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    // Only allow zip files
     const allowedMimeTypes = [
       "application/zip",
       "application/x-zip-compressed",

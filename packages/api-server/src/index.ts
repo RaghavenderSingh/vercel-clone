@@ -13,6 +13,10 @@ import { projectRouter } from "./routes/project";
 import { deploymentRouter } from "./routes/deployment";
 import { aiRouter } from "./routes/ai";
 import domainRouter from "./routes/domain";
+import { activityRouter } from "./routes/activity";
+import { usageRouter } from "./routes/usage";
+import { observabilityRouter } from "./routes/observability";
+import { globalDomainRouter } from "./routes/global-domain";
 import { errorHandler } from "./middleware/errorHandler";
 import rateLimit from "express-rate-limit";
 import { createLogger } from "@vercel-clone/shared";
@@ -20,6 +24,7 @@ import { createLogger } from "@vercel-clone/shared";
 const logger = createLogger('api-server');
 
 const app = express();
+app.set("trust proxy", 1);
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -31,7 +36,6 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 3000;
 
-// CORS configuration - restrict to specific origins
 const allowedOrigins = [
   process.env.FRONTEND_URL || "http://localhost:3001",
   "http://localhost:3001",
@@ -45,7 +49,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.indexOf(origin) !== -1) {
@@ -65,7 +68,6 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// CSRF Protection - exclude webhooks and health check
 const csrfProtection = csrf({
   cookie: {
     httpOnly: true,
@@ -74,61 +76,57 @@ const csrfProtection = csrf({
   }
 });
 
-// Rate limiting configuration
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Increased for development
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   message: { error: "Too many login/register attempts, please try again later" },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const deployLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // 10 deployments per hour
+  windowMs: 60 * 60 * 1000,
+  max: 10,
   message: { error: "Deployment rate limit exceeded, please try again later" },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per 15 minutes
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: { error: "Too many requests, please try again later" },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Apply general API rate limiting to all routes
 app.use("/api", apiLimiter);
 
 app.set("io", io);
 
-// Health check - no CSRF protection needed
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// CSRF token endpoint - clients must fetch this before making state-changing requests
 app.get("/api/csrf-token", csrfProtection, (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
 
-// Webhooks - no CSRF protection (external service)
 app.use("/api/webhooks", webhookRouter);
 
-// OAuth callback - no CSRF protection (called server-side by NextAuth)
 import { oauthCallback } from "./controllers/auth.controller";
 app.post("/api/auth/oauth/callback", authLimiter, oauthCallback);
 
-// Protected routes - apply CSRF protection to state-changing operations
 app.use("/api/auth", authLimiter, csrfProtection, authRouter);
 app.use("/api/projects", csrfProtection, projectRouter);
 app.use("/api/deployments", csrfProtection, deploymentRouter);
 app.use("/api/ai", csrfProtection, aiRouter);
+app.use("/api/activities", csrfProtection, activityRouter);
+app.use("/api/usage", csrfProtection, usageRouter);
+app.use("/api/observability", csrfProtection, observabilityRouter);
+app.use("/api/domains", csrfProtection, globalDomainRouter);
 app.use("/api/projects/:projectId/domains", csrfProtection, domainRouter);
 
-// New Deploy Endpoint - uses JWT auth (no CSRF needed for CLI)
 import { deployProject } from "./controllers/deployment.controller";
 import { authMiddleware } from "./middleware/auth";
 import { uploadMiddleware } from "./middleware/upload";
@@ -149,20 +147,16 @@ io.on("connection", (socket) => {
     logger.debug('Client unsubscribed from deployment', { socketId: socket.id, deploymentId });
   });
 
-  // Handle deployment log events from build worker and broadcast to subscribers
   socket.on("deployment-log", (data: { deploymentId: string; log: string; timestamp: string }) => {
     logger.debug('Deployment log received', {
       deploymentId: data.deploymentId,
       logPreview: data.log.substring(0, 100)
     });
-    // Broadcast to all clients subscribed to this deployment
     io.to(`deployment:${data.deploymentId}`).emit("deployment-log", data);
   });
 
-  // Handle deployment status updates from build worker and broadcast to subscribers
   socket.on("deployment-update", (data: { deploymentId: string; status: string; logs?: string; timestamp: string }) => {
     logger.info('Deployment status update', { deploymentId: data.deploymentId, status: data.status });
-    // Broadcast to all clients subscribed to this deployment
     io.to(`deployment:${data.deploymentId}`).emit("deployment-update", data);
   });
 
@@ -185,4 +179,3 @@ httpServer.listen(PORT, () => {
 });
 
 export { io };
-// Build cache test Sun Jan  4 13:50:10 IST 2026

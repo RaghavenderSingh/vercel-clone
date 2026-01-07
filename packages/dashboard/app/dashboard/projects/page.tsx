@@ -156,7 +156,6 @@ export default function ProjectsPage() {
         <div className={viewMode === "grid" ? "grid gap-6 md:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-3"}>
           {filteredProjects.map((project) => (
             viewMode === "grid" ? (
-              // Grid Card
               <Link 
                 key={project.id} 
                 href={`/dashboard/projects/${project.id}`}
@@ -200,7 +199,6 @@ export default function ProjectsPage() {
                 </div>
               </Link>
             ) : (
-             // List Item
              <Link 
                 key={project.id} 
                 href={`/dashboard/projects/${project.id}`}

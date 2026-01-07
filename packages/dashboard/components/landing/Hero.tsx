@@ -66,15 +66,6 @@ export function Hero() {
       <Plus className="absolute -bottom-[5.5px] -right-[5.5px] z-10" />
 
       <div className="container relative z-10 px-4 mx-auto text-center">
-        <FadeIn delay={0.1}>
-          <Badge
-            variant="outline"
-            className="mb-8 border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors px-4 py-1.5 text-sm backdrop-blur-sm"
-          >
-            Titan 2.0 is now available
-          </Badge>
-        </FadeIn>
-
         <FadeIn delay={0.2}>
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 bg-clip-text text-transparent bg-gradient-to-b from-white via-white/90 to-white/50 pb-2">
             Deploy your <br className="hidden md:block" />
@@ -84,9 +75,9 @@ export function Hero() {
 
         <FadeIn delay={0.3}>
           <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-            The global platform for frontend developers. Connect your GitHub
-            repository and let Deply handle the rest. Automatic builds, instant
-            deployments, and edge scaling.
+            Automated deployment platform with GitHub integration. Connect your
+            repository and let Titan handle the rest. Automatic builds, instant
+            deployments, and intelligent error analysis.
           </p>
         </FadeIn>
 
@@ -223,7 +214,7 @@ export function Hero() {
                         Deployment Complete
                       </div>
                       <div className="text-white text-sm">
-                        project-gamma.deply.app
+                        your-project.titan.app
                       </div>
                     </div>
                   </div>

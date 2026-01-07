@@ -6,36 +6,30 @@ import { projectsAPI, deploymentsAPI } from "@/lib/api";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { 
-  ArrowLeft, 
   ExternalLink, 
   Github, 
-  History, 
   Settings, 
-  Zap, 
-  Globe, 
   GitBranch, 
-  MessageSquare,
   ChevronRight,
-  MoreVertical,
-  MoreHorizontal,
   Plus,
   Play,
   CheckCircle2,
   Clock,
   AlertCircle,
+  Loader2,
+  Box,
   Terminal,
   Activity,
-  Loader2
+  MoreHorizontal,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { motion, AnimatePresence } from "framer-motion";
 import { FixSuggestions } from "@/components/auto-fixer/FixSuggestions";
 import { EnvVarsSettings } from "@/components/projects/settings/EnvVarsSettings";
@@ -43,6 +37,9 @@ import { DomainSettings } from "@/components/projects/settings/DomainSettings";
 import { BuildSettings } from "@/components/projects/settings/BuildSettings";
 import { DangerZone } from "@/components/projects/settings/DangerZone";
 import { DeploymentLogs } from "@/components/projects/DeploymentLogs";
+import { DashboardPage } from "@/components/dashboard-page";
+import { PremiumCard, PremiumCardContent } from "@/components/ui/premium-card";
+import { cn } from "@/lib/utils";
 
 interface Deployment {
   id: string;
@@ -69,6 +66,7 @@ interface Project {
 
 export default function ProjectDetailPage() {
   const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
@@ -77,19 +75,17 @@ export default function ProjectDetailPage() {
   const [deploying, setDeploying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [deployForm, setDeployForm] = useState({
-    branch: "main",
-    commitMessage: "",
-  });
-
   useEffect(() => {
-    fetchProject();
-    fetchDeployments();
-  }, [params.id]);
+    if (id) {
+      fetchProject();
+      fetchDeployments();
+    }
+  }, [id]);
 
   const fetchProject = async () => {
     try {
-      const { data } = await projectsAPI.get(params.id as string);
+      if (!id) return;
+      const { data } = await projectsAPI.get(id);
       setProject(data);
     } catch (error) {
       console.error("Failed to fetch project:", error);
@@ -100,27 +96,26 @@ export default function ProjectDetailPage() {
 
   const fetchDeployments = async () => {
     try {
-      const { data } = await deploymentsAPI.listByProject(params.id as string);
+      if (!id) return;
+      const { data } = await deploymentsAPI.listByProject(id);
       setDeployments(data);
     } catch (error) {
       console.error("Failed to fetch deployments:", error);
     }
   };
 
-  const handleDeploy = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleDeploy = async () => {
     setDeploying(true);
     setError(null);
-
     try {
+      if (!id) return;
       await deploymentsAPI.create({
-        projectId: params.id as string,
+        projectId: id,
         type: 'manual',
-        branch: deployForm.branch,
+        branch: 'main',
         commitSha: `manual-${Date.now()}`,
-        commitMessage: deployForm.commitMessage || "Manual deployment",
+        commitMessage: "Manual deployment",
       });
-
       await fetchDeployments();
     } catch (error: any) {
       console.error("Failed to deploy:", error);
@@ -133,11 +128,9 @@ export default function ProjectDetailPage() {
   const handleRedeploy = async (deployment: Deployment) => {
     setDeploying(true);
     try {
-      // Determine type based on commitSha format
       const isManual = deployment.commitSha.startsWith('manual-');
-
       await deploymentsAPI.create({
-        projectId: params.id as string,
+        projectId: id,
         type: isManual ? 'manual' : 'git',
         branch: deployment.branch,
         commitSha: deployment.commitSha,
@@ -173,19 +166,21 @@ export default function ProjectDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-12 h-12 text-primary animate-spin" />
       </div>
     );
   }
 
   if (!project) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Project not found</h1>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-black text-white">Project not found</h1>
           <Link href="/dashboard">
-            <Button variant="outline" className="border-white/10 hover:bg-white/5">Back to Dashboard</Button>
+            <Button className="bg-white text-black font-black px-6 rounded-xl hover:bg-zinc-200">
+               Back to Dashboard
+            </Button>
           </Link>
         </div>
       </div>
@@ -195,354 +190,253 @@ export default function ProjectDetailPage() {
   const latestDeployment = deployments[0];
 
   return (
-    <>
-      <main className="container mx-auto px-4 md:px-6 py-6 overflow-hidden">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div className="flex items-center gap-6">
-          <Link
-            href="/dashboard/projects"
-            className="group p-2 rounded-full hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-300"
-          >
-            <ArrowLeft className="h-4 w-4 text-zinc-400 group-hover:text-white transition-colors" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gradient-to-tr from-white to-zinc-200 rounded-xl flex items-center justify-center shadow-lg shadow-white/5 ring-1 ring-white/10">
-              <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[9px] border-b-black translate-y-[0.5px]" />
-            </div>
-            <div className="space-y-0.5">
-                <h1 className="text-2xl font-bold text-white tracking-tight">{project.name}</h1>
-                <div className="flex items-center gap-2 text-xs text-zinc-500 font-medium">
-                    <span>{project.repoUrl.replace('https://github.com/', '')}</span>
-                    <span className="w-0.5 h-0.5 rounded-full bg-zinc-600" />
-                    <span className="uppercase tracking-wider">{project.framework}</span>
-                </div>
-            </div>
-          </div>
-        </div>
+    <DashboardPage
+      title={project.name}
+      description={project.repoUrl.replace('https://github.com/', '')}
+      breadcrumbs={[{ label: "Projects", href: "/dashboard" }, { label: project.name }]}
+      headerActions={
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="h-9 px-4 rounded-lg border-white/10 bg-white/5 text-xs font-medium hover:bg-white/10 text-white"
+          <a href={latestDeployment?.deploymentUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" className="h-11 px-6 rounded-2xl border-white/10 bg-white/5 font-black text-xs uppercase tracking-widest hover:bg-white/10 text-white gap-2">
+              Visit <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </a>
+          <Button 
+            onClick={handleDeploy}
+            disabled={deploying}
+            className="h-11 px-6 bg-white text-black font-black text-xs uppercase tracking-widest hover:bg-white/90 rounded-2xl gap-3 shadow-2xl shadow-white/5"
           >
-            Visit
-            <ExternalLink className="ml-2 h-3 w-3" />
+            {deploying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
+            {deploying ? "Deploying..." : "Redeploy"}
           </Button>
         </div>
-      </div>
-
-      <div className="border-b border-white/5 mb-8">
-        <div className="flex items-center gap-1">
+      }
+    >
+      <div className="space-y-10">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 border-b border-white/[0.05]">
           {["overview", "deployments", "settings"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
-              className={`
-                relative px-4 py-3 text-sm font-medium transition-all duration-300 capitalize
-                ${activeTab === tab 
-                    ? "text-white" 
-                    : "text-zinc-500 hover:text-zinc-300"
-                }
-              `}
+              className={cn(
+                "relative px-6 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all duration-300",
+                activeTab === tab ? "text-white" : "text-muted-foreground hover:text-white"
+              )}
             >
               <span className="relative z-10">{tab}</span>
               {activeTab === tab && (
                 <motion.div 
-                    layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-t-full shadow-[0_0_10px_rgba(255,255,255,0.5)]" 
+                    layoutId="activeTabProject"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-t-full shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
                 />
               )}
             </button>
           ))}
         </div>
-      </div>
-      
-      <AnimatePresence mode="wait">
-        {activeTab === "overview" && (
+
+        <AnimatePresence mode="wait">
+          {activeTab === "overview" && (
             <motion.div 
-                key="overview"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-10"
+              key="overview"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="grid gap-10 lg:grid-cols-3"
             >
-                <div className="grid gap-8 lg:grid-cols-3">
-                    <div className="lg:col-span-2 space-y-8">
-                        <section className="relative rounded-3xl border border-white/5 bg-zinc-900/30 overflow-hidden group hover:border-white/10 transition-colors duration-500">
-                           <div className="p-8 flex flex-col xl:flex-row justify-between gap-8 relative z-10">
-                                <div className="space-y-8 flex-1 min-w-0">
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                Production
-                                            </div>
-                                            <span className="text-zinc-500 text-xs font-medium px-2 py-0.5 border border-white/5 rounded-full">
-                                                Populted from Git
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <h2 className="text-2xl font-bold tracking-tight text-white mb-1">Production Deployment</h2>
-                                            <p className="text-zinc-400 text-sm">
-                                                The latest deployment is live.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="col-span-2 sm:col-span-1 space-y-1.5">
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Deployment</p>
-                                            <a href={latestDeployment?.deploymentUrl} target="_blank" className="block group/link">
-                                                <div className="flex items-center gap-2 text-sm font-medium text-zinc-200 group-hover/link:text-white transition-colors">
-                                                    <span className="truncate">{latestDeployment?.deploymentUrl?.replace('https://', '') || "Not deployed yet"}</span>
-                                                    <ExternalLink className="h-3 w-3 opacity-50 group-hover/link:opacity-100 transition-opacity" />
-                                                </div>
-                                            </a>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Status</p>
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${latestDeployment?.status === 'ready' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-zinc-500'}`} />
-                                                <span className="text-sm font-medium capitalize text-zinc-200">{latestDeployment?.status || "Inactive"}</span>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Source</p>
-                                            <div className="flex items-center gap-2 text-zinc-300">
-                                                <Github className="h-4 w-4 text-zinc-500" />
-                                                <span className="text-sm font-medium text-zinc-200">{project.repoUrl.split('/').pop()}</span>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Branch</p>
-                                            <div className="flex items-center gap-2 text-zinc-300">
-                                                <GitBranch className="h-4 w-4 text-zinc-500" />
-                                                <span className="text-sm font-medium text-zinc-200">{latestDeployment?.branch || "main"}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="w-full xl:w-[320px] aspect-[4/3] xl:aspect-square shrink-0 border border-white/5 bg-zinc-900/50 relative overflow-hidden group/preview rounded-xl ring-1 ring-white/10">
-                                    {latestDeployment?.status === 'ready' ? (
-                                        <div className="w-[200%] h-[200%] absolute top-0 left-0 origin-top-left transform scale-50 bg-white">
-                                            <iframe
-                                                src={latestDeployment.deploymentUrl}
-                                                className="w-full h-full border-0"
-                                                title="Deployment Preview"
-                                                sandbox="allow-scripts allow-same-origin"
-                                                loading="lazy"
-                                            />
-                                            {/* Mask to prevent interaction with iframe */}
-                                            <div className="absolute inset-0 z-10" />
-                                        </div>
-                                    ) : (
-                                        /* Loading State / Placeholder */
-                                        <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black flex items-center justify-center">
-                                            <div className="flex flex-col items-center gap-3">
-                                                 <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center animate-pulse">
-                                                    <Loader2 className="h-5 w-5 text-zinc-500 animate-spin" />
-                                                 </div>
-                                                 <p className="text-xs font-medium text-zinc-500">
-                                                    {latestDeployment?.status === 'building' ? 'Building Preview...' : 'Waiting for deployment...'}
-                                                 </p>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Hover Overlay */}
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/preview:opacity-100 transition-opacity duration-300 backdrop-blur-[2px] z-20 flex items-center justify-center">
-                                         <a 
-                                            href={latestDeployment?.deploymentUrl} 
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="px-5 py-2.5 rounded-full bg-white text-black text-xs font-bold shadow-2xl hover:scale-105 transition-transform flex items-center gap-2 transform translate-y-2 group-hover/preview:translate-y-0 duration-300"
-                                         >
-                                            Visit Deployment <ExternalLink className="h-3.5 w-3.5" />
-                                         </a>
-                                    </div>
-                                </div>
+               <div className="lg:col-span-2 space-y-10">
+                  <PremiumCard variant="glass" className="overflow-hidden">
+                     <div className="flex flex-col xl:flex-row divide-y xl:divide-y-0 xl:divide-x divide-white/[0.05]">
+                        <div className="p-8 flex-1 space-y-8">
+                           <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+                                 <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Production</span>
+                              </div>
                            </div>
-                        </section>
+                           
+                           <div>
+                              <h3 className="text-2xl font-black tracking-tighter text-white mb-2">Production Deployment</h3>
+                              <p className="text-sm font-medium text-muted-foreground">The latest deployment is live and accessible at this URL.</p>
+                           </div>
 
-                        <DeploymentLogs 
-                            deploymentId={latestDeployment?.id} 
-                            initialLogs={latestDeployment?.buildLogs}
-                            status={latestDeployment?.status}
-                        />
+                           <div className="grid grid-cols-2 gap-8">
+                              <div className="space-y-1.5">
+                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">URL</p>
+                                 <Link href={latestDeployment?.deploymentUrl || "#"} target="_blank" className="flex items-center gap-2 text-sm font-bold text-white hover:text-primary transition-colors truncate">
+                                    {latestDeployment?.deploymentUrl.replace('https://', '') || "Not deployed"}
+                                 </Link>
+                              </div>
+                              <div className="space-y-1.5">
+                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Status</p>
+                                 <div className="flex items-center gap-2">
+                                    <div className={cn("w-2 h-2 rounded-full", latestDeployment?.status === 'ready' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-muted-foreground")} />
+                                    <span className="text-sm font-bold text-white capitalize">{latestDeployment?.status || "Inactive"}</span>
+                                 </div>
+                              </div>
+                              <div className="space-y-1.5">
+                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Branch</p>
+                                 <div className="flex items-center gap-2 text-sm font-bold text-white">
+                                    <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
+                                    {latestDeployment?.branch || "main"}
+                                 </div>
+                              </div>
+                              <div className="space-y-1.5">
+                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Commit</p>
+                                 <div className="flex items-center gap-2 text-sm font-bold text-white truncate">
+                                    <Github className="h-3.5 w-3.5 text-muted-foreground" />
+                                    {latestDeployment?.commitSha.slice(0, 7) || "N/A"}
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+
+                        <div className="w-full xl:w-96 aspect-square bg-white/[0.02] flex items-center justify-center p-8 group relative overflow-hidden">
+                           <div className="w-full h-full relative rounded-2xl border border-white/[0.05] overflow-hidden bg-background shadow-2xl">
+                             {latestDeployment?.status === 'ready' ? (
+                               <iframe
+                                   src={latestDeployment.deploymentUrl}
+                                   className="w-full h-full border-0 pointer-events-none"
+                                   title="Preview"
+                               />
+                             ) : (
+                               <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-muted-foreground">
+                                  <Loader2 className="h-8 w-8 animate-spin opacity-20" />
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Generating Preview</span>
+                               </div>
+                             )}
+                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                <a href={latestDeployment?.deploymentUrl} target="_blank" rel="noopener noreferrer">
+                                   <Button className="bg-white text-black font-black px-6 py-2 rounded-xl text-xs uppercase tracking-widest shadow-2xl">Visit Deployment</Button>
+                                </a>
+                             </div>
+                           </div>
+                        </div>
+                     </div>
+                  </PremiumCard>
+
+                  <section className="space-y-6">
+                    <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] px-1 flex items-center gap-3">
+                      <Terminal className="h-4 w-4 text-muted-foreground" />
+                      Build Logs
+                    </h3>
+                    <DeploymentLogs 
+                        deploymentId={latestDeployment?.id} 
+                        initialLogs={latestDeployment?.buildLogs}
+                        status={latestDeployment?.status}
+                    />
+                  </section>
+               </div>
+
+               <aside className="space-y-10">
+                  <section className="space-y-6">
+                    <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] px-1">Recent Activity</h3>
+                    <div className="space-y-0 relative pl-4">
+                        <div className="absolute left-[19px] top-2 bottom-8 w-px bg-white/[0.05]" />
+                        {deployments.slice(0, 4).map((dep, idx) => (
+                           <div key={dep.id} className="relative flex gap-6 pb-1 group last:pb-0">
+                              <div className={cn(
+                                "w-2.5 h-2.5 rounded-full border-[2.5px] border-background relative z-10 translate-y-1.5 shrink-0",
+                                dep.status === 'ready' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-muted-foreground"
+                              )} />
+                              <div className="flex-1 space-y-1 transition-all group-hover:translate-x-1">
+                                 <p className="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">{dep.commitMessage}</p>
+                                 <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{formatDistanceToNow(new Date(dep.createdAt))} ago</span>
+                                    <span className="w-1 h-1 rounded-full bg-white/10" />
+                                    <span className="text-[10px] font-bold text-muted-foreground tracking-tighter uppercase">{dep.branch}</span>
+                                 </div>
+                              </div>
+                           </div>
+                        ))}
                     </div>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setActiveTab("deployments")}
+                      className="w-full h-11 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-white flex items-center justify-between px-4 group"
+                    >
+                       View All Deployments
+                       <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </section>
 
-                    <div className="space-y-6">
-                        <section className="rounded-3xl border border-white/5 bg-zinc-900/30 p-6">
-                            <h3 className="text-xs font-bold text-zinc-500 mb-6 uppercase tracking-wider">Recent Activity</h3>
-                            <div className="space-y-0 relative">
-                                <div className="absolute top-2 left-[15px] bottom-6 w-px bg-white/5" />
-                                {deployments.slice(0, 3).map((dep, i) => (
-                                    <div key={dep.id} className="flex gap-4 relative pb-6 last:pb-0 group">
-                                        <div className={`relative z-10 w-8 h-8 rounded-full border-[3px] border-black flex items-center justify-center shrink-0 ${
-                                            dep.status === 'ready' ? 'bg-zinc-800 text-emerald-500' : 
-                                            dep.status === 'building' ? 'bg-zinc-800 text-amber-500' : 
-                                            dep.status === 'error' ? 'bg-zinc-800 text-red-500' :
-                                            'bg-zinc-900 text-zinc-500'
-                                        }`}>
-                                            <div className={`w-2 h-2 rounded-full ${dep.status === 'ready' ? 'bg-emerald-500' : dep.status === 'building' ? 'bg-amber-500' : 'bg-zinc-600'}`} />
-                                        </div>
-                                        <div className="pt-0.5 min-w-0">
-                                            <p className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors truncate">{dep.commitMessage || "New deployment"}</p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <p className="text-[11px] text-zinc-500 font-medium">
-                                                    {formatDistanceToNow(new Date(dep.createdAt))} ago
-                                                </p>
-                                                <span className="w-0.5 h-0.5 rounded-full bg-zinc-700" />
-                                                <p className="text-[11px] text-zinc-500 font-mono">
-                                                    {dep.commitSha?.substring(0, 7)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-6 pt-0">
-                                <Link href="/dashboard/deployments" className="block w-full">
-                                    <Button variant="ghost" className="w-full justify-start pl-0 text-zinc-400 hover:text-white hover:bg-transparent text-xs font-medium group">
-                                        View All Activity
-                                        <ChevronRight className="h-3 w-3 ml-1 transition-transform group-hover:translate-x-0.5" />
-                                    </Button>
-                                </Link>
-                            </div>
-                        </section>
-
-                        {/* AI Fix Suggestions - Show for most recent failed deployment */}
-                        {deployments.length > 0 && deployments.some(d => d.status === 'error') && (
-                            <section className="rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-900/10 to-purple-800/5 p-6">
-                                <FixSuggestions deploymentId={deployments.find(d => d.status === 'error')?.id || ''} />
-                            </section>
-                        )}
-
-                        <section className="rounded-3xl border border-white/5 bg-zinc-900/30 p-6">
-                            <h3 className="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-wider">Quick Actions</h3>
-                            {error && (
-                                <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400">
-                                    <AlertCircle className="h-4 w-4 shrink-0" />
-                                    <p className="text-xs font-medium">{error}</p>
-                                </div>
-                            )}
-                            <div className="grid grid-cols-2 gap-3">
-                                <Button 
-                                    onClick={() => handleDeploy()} 
-                                    disabled={deploying}
-                                    className="h-12 rounded-xl font-medium shadow-[0_0_15px_rgba(255,255,255,0.05)] hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] bg-white text-black hover:bg-zinc-200 border-0 text-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                >
-                                    {deploying ? (
-                                        <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
-                                    ) : (
-                                        <Play className="h-3.5 w-3.5 mr-2 fill-current" />
-                                    )}
-                                    {deploying ? "Deploying..." : "Deploy"}
-                                </Button>
-                                <Button variant="outline" className="h-12 rounded-xl font-medium border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs">
-                                    <Settings className="h-3.5 w-3.5 mr-2" />
-                                    Settings
-                                </Button>
-                            </div>
-                        </section>
-                    </div>
-                </div>
+                  {/* AI Fix Suggestions */}
+                  {deployments.some(d => d.status === 'error') && (
+                      <section className="space-y-6">
+                        <h3 className="text-xs font-black text-purple-400 uppercase tracking-[0.2em] px-1 flex items-center gap-3">
+                          <Zap className="h-4 w-4 fill-current" />
+                          AI Diagnostics
+                        </h3>
+                        <FixSuggestions deploymentId={deployments.find(d => d.status === 'error')?.id || ''} />
+                      </section>
+                  )}
+               </aside>
             </motion.div>
-        )}
+          )}
 
-        {activeTab === "deployments" && (
+          {activeTab === "deployments" && (
             <motion.div 
                 key="deployments"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
                 className="space-y-6"
             >
-                <div className="flex justify-between items-center mb-10">
-                    <h2 className="text-3xl font-black tracking-tighter">All Deployments</h2>
-                    <Button variant="outline" className="rounded-xl font-bold border-border bg-muted/10 h-10 px-6">
-                        Export Logs
-                    </Button>
-                </div>
-                
-                <div className="rounded-[2rem] border border-border bg-card/20 overflow-hidden backdrop-blur-sm">
-                    <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-border bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        <div className="col-span-1">Status</div>
-                        <div className="col-span-4">Commit</div>
-                        <div className="col-span-2">Branch</div>
-                        <div className="col-span-2">Date</div>
-                        <div className="col-span-2">Execution</div>
-                        <div className="col-span-1"></div>
-                    </div>
-                    <div className="divide-y divide-border">
-                        {deployments.length === 0 ? (
-                            <div className="p-20 text-center">
-                                <p className="text-muted-foreground font-bold italic">No deployments found.</p>
-                            </div>
-                        ) : (
-                            deployments.map((dep) => (
-                                <div key={dep.id} className="grid grid-cols-12 gap-4 px-8 py-6 items-center hover:bg-muted/10 transition-colors group">
-                                    <div className="col-span-1">
-                                        <div className={`w-8 h-8 rounded-full border flex items-center justify-center ${getStatusColor(dep.status)}`}>
-                                            {getStatusIcon(dep.status)}
-                                        </div>
-                                    </div>
-                                    <div className="col-span-4 min-w-0">
-                                        <p className="font-bold truncate text-sm mb-0.5 group-hover:text-primary transition-colors cursor-pointer">{dep.commitMessage || "New deployment"}</p>
-                                        <p className="font-mono text-[10px] text-muted-foreground opacity-70 uppercase tracking-widest">{dep.commitSha.slice(0, 7)}</p>
-                                    </div>
-                                    <div className="col-span-2">
-                                        <span className="px-2 py-1 rounded-lg bg-muted text-[10px] font-black uppercase tracking-tighter border border-border/50 text-muted-foreground">
-                                            {dep.branch}
-                                        </span>
-                                    </div>
-                                    <div className="col-span-2">
-                                        <p className="text-xs font-bold whitespace-nowrap">{formatDistanceToNow(new Date(dep.createdAt))} ago</p>
-                                    </div>
-                                    <div className="col-span-2">
-                                        <p className="text-xs font-bold text-muted-foreground">Production</p>
-                                    </div>
-                                    <div className="col-span-1 text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <button className="p-2 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-muted">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="rounded-xl border-border bg-background/80 backdrop-blur-xl p-1.5 min-w-[160px]">
-                                                <DropdownMenuItem className="rounded-lg font-bold text-xs uppercase tracking-widest px-3 py-2.5">
-                                                    View Logs
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem 
-                                                    className="rounded-lg font-bold text-xs uppercase tracking-widest px-3 py-2.5 cursor-pointer"
-                                                    onClick={() => handleRedeploy(dep)}
-                                                    disabled={deploying}
-                                                >
-                                                    Redeploy
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
+                <PremiumCard>
+                    <div className="divide-y divide-white/[0.05]">
+                        <div className="grid grid-cols-12 gap-4 px-8 py-4 bg-white/[0.02] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                            <div className="col-span-1 text-center">Status</div>
+                            <div className="col-span-5">Deployment Source</div>
+                            <div className="col-span-2">Branch</div>
+                            <div className="col-span-3">Time Ended</div>
+                            <div className="col-span-1"></div>
+                        </div>
+                        {deployments.map((dep) => (
+                            <div key={dep.id} className="grid grid-cols-12 gap-4 px-8 py-6 items-center hover:bg-white/[0.01] transition-colors group">
+                                <div className="col-span-1 flex justify-center">
+                                    <div className={cn("w-2 h-2 rounded-full", dep.status === 'ready' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-muted-foreground")} />
                                 </div>
-                            ))
-                        )}
+                                <div className="col-span-5 space-y-1">
+                                    <p className="text-sm font-bold text-white group-hover:text-primary transition-colors cursor-pointer truncate">{dep.commitMessage}</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{dep.commitSha.slice(0, 7)}</p>
+                                </div>
+                                <div className="col-span-2">
+                                    <span className="px-3 py-1 rounded-md bg-white/[0.05] border border-white/[0.05] text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                        {dep.branch}
+                                    </span>
+                                </div>
+                                <div className="col-span-3">
+                                    <p className="text-xs font-bold text-white">{formatDistanceToNow(new Date(dep.createdAt))} ago</p>
+                                </div>
+                                <div className="col-span-1 flex justify-end">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white transition-opacity opacity-0 group-hover:opacity-100">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="glass-panel text-white rounded-xl min-w-[160px] p-2 mt-2">
+                                            <DropdownMenuItem className="focus:bg-white/[0.05] font-bold text-[10px] px-3 py-2 uppercase tracking-widest rounded-lg">View Logs</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleRedeploy(dep)} className="focus:bg-white/[0.05] font-bold text-[10px] px-3 py-2 uppercase tracking-widest rounded-lg">Redeploy</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                </div>
+                </PremiumCard>
             </motion.div>
-        )}
+          )}
 
-        {activeTab === "settings" && project && (
-             <motion.div 
+          {activeTab === "settings" && (
+            <motion.div 
                 key="settings"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="max-w-4xl space-y-12"
+                className="max-w-4xl space-y-16"
             >
-                <div className="grid gap-12">
+                <div className="grid gap-16">
                   <DomainSettings projectId={project.id} />
                   
                   <EnvVarsSettings 
@@ -561,12 +455,10 @@ export default function ProjectDetailPage() {
 
                   <DangerZone projectId={project.id} />
                 </div>
-             </motion.div>
-        )}
-      </AnimatePresence>
-      </main>
-
-    </>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </DashboardPage>
   );
 }
-

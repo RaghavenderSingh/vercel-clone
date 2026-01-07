@@ -18,10 +18,9 @@ export class ClaudeProvider implements AIProvider {
     this.client = new Anthropic({
       apiKey: config.apiKey,
       maxRetries: config.maxRetries || 3,
-      timeout: config.timeout || 60000, // 60 seconds
+      timeout: config.timeout || 60000,
     });
 
-    // Default to Claude 3.5 Sonnet
     this.model = config.model || 'claude-3-5-sonnet-20241022';
   }
 

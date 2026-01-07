@@ -14,7 +14,6 @@ export async function getFixSuggestions(req: Request, res: Response) {
   try {
     const { deploymentId } = req.params;
 
-    // Verify deployment exists
     const deployment = await prisma.deployment.findUnique({
       where: { id: deploymentId },
       include: { project: true },
@@ -24,7 +23,6 @@ export async function getFixSuggestions(req: Request, res: Response) {
       return res.status(404).json({ error: 'Deployment not found' });
     }
 
-    // Get fix suggestions ordered by confidence
     const suggestions = await prisma.aIFixSuggestion.findMany({
       where: { deploymentId },
       orderBy: { confidence: 'desc' },

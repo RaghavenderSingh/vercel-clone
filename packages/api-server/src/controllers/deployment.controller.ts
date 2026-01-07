@@ -36,7 +36,7 @@ export const deployProject = async (
                  data: {
                      name: projectName,
                      userId,
-                     repoUrl: "", // Empty for zip uploads
+                     repoUrl: "",
                      framework: "unknown"
                  }
              });
@@ -48,13 +48,11 @@ export const deployProject = async (
                 projectId: project.id,
                 status: "QUEUED",
                 commitSha: "zip-upload",
-                branch: "main" // Default
+                branch: "main"
             }
         });
         
         // 3. Move Zip to "S3" (Local Mock)
-        // We will store it in /tmp/uploads/<deploymentId>.zip
-        // In prod, this would be key: deployments/<id>/source.zip
         const uploadDir = "/tmp/uploads";
         if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
         
@@ -66,11 +64,11 @@ export const deployProject = async (
             deploymentId: deployment.id,
             repoUrl: "", 
             branch: "",
-            buildCommand: "npm run build", // Default, user can override but we use defaults for now
+            buildCommand: "npm run build",
             installCommand: "npm install",
             envVars: {},
-            sourceType: "zip", // <--- NEW FIELD
-            zipPath: targetPath // <--- NEW FIELD
+            sourceType: "zip",
+            zipPath: targetPath
         });
 
         const requestHandlerDomain = process.env.REQUEST_HANDLER_DOMAIN || "localhost:3002";
@@ -103,7 +101,6 @@ export const createDeployments = async (
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    // Check project ownership before creating deployment
     await checkProjectOwnership(projectId, userId);
 
     const deployment = await createDeployment(
@@ -138,7 +135,6 @@ export const getDeployment = async (
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    // Check ownership before returning deployment
     await checkDeploymentOwnership(deploymentId, userId);
 
     const deployment = await getDeploymentById(deploymentId);
@@ -171,7 +167,6 @@ export const getDeploymentByProject = async (
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    // Check project ownership before returning deployments
     await checkProjectOwnership(projectId, userId);
 
     const deployments = await getDeploymentsByProject(projectId);
@@ -201,7 +196,6 @@ export const cancelDeployments = async (
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    // Check ownership before canceling deployment
     await checkDeploymentOwnership(deploymentId, userId);
 
     const deployment = await cancelDeployment(deploymentId);

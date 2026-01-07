@@ -2,12 +2,21 @@
 FROM oven/bun:1 AS deps
 WORKDIR /app
 
-# Install system dependencies for native modules
+# Install system dependencies for native modules and Docker CLI
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
     git \
+    ca-certificates \
+    curl \
+    gnupg \
+    && install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && chmod a+r /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update && apt-get install -y docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files for workspace dependency resolution
@@ -21,10 +30,8 @@ COPY packages/request-handler/package.json ./packages/request-handler/
 COPY packages/ai-service/package.json ./packages/ai-service/
 COPY packages/cli/package.json ./packages/cli/
 
-# Install all dependencies with BuildKit cache
-# Use --ignore-scripts to skip optional native module builds (msgpackr-extract, cpu-features)
-RUN --mount=type=cache,id=bun-cache,target=/root/.bun/install/cache \
-    bun install --ignore-scripts
+# Install all dependencies
+RUN bun install --ignore-scripts
 
 # Stage 2: Generate Prisma client (depends on deps)
 FROM deps AS builder-base
@@ -39,11 +46,20 @@ COPY packages/request-handler ./packages/request-handler
 COPY packages/dashboard ./packages/dashboard
 
 WORKDIR /app/packages/db
+WORKDIR /app/packages/db
 RUN bun run db:generate
+
+WORKDIR /app/packages/shared
+RUN bun run build
+
+WORKDIR /app/packages/ai-service
+RUN bun run build
 
 # Stage 3: Build Dashboard
 FROM builder-base AS dashboard-builder
 WORKDIR /app/packages/dashboard
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN bun run build
 
 # Dashboard runner (minimal production image)
@@ -54,7 +70,11 @@ COPY --from=dashboard-builder /app/packages/dashboard/.next/static ./.next/stati
 COPY --from=dashboard-builder /app/packages/dashboard/public ./public
 ENV NODE_ENV=production
 # Install production dependencies (standalone build has package.json)
-RUN npm install --omit=dev
+# Install production dependencies (standalone build has package.json)
+# RUN npm install --omit=dev
+# Install production dependencies (standalone build has package.json)
+# RUN npm install --omit=dev
+RUN rm package.json && npm cache clean --force && npm install next@14.2.0 sharp
 EXPOSE 3000
 CMD ["node", "server.js"]
 
@@ -64,10 +84,7 @@ WORKDIR /app/packages/api-server
 RUN bun run build
 
 # API Server runner
-FROM deps AS api-server
-COPY --from=api-builder /app/packages/db ./packages/db
-COPY --from=api-builder /app/packages/shared ./packages/shared
-COPY --from=api-builder /app/packages/api-server ./packages/api-server
+FROM api-builder AS api-server
 WORKDIR /app/packages/api-server
 EXPOSE 3001
 CMD ["bun", "dist/index.js"]
@@ -78,10 +95,7 @@ WORKDIR /app/packages/request-handler
 RUN bun run build
 
 # Request Handler runner
-FROM deps AS request-handler
-COPY --from=request-handler-builder /app/packages/db ./packages/db
-COPY --from=request-handler-builder /app/packages/shared ./packages/shared
-COPY --from=request-handler-builder /app/packages/request-handler ./packages/request-handler
+FROM request-handler-builder AS request-handler
 WORKDIR /app/packages/request-handler
 EXPOSE 3002
 CMD ["bun", "dist/index.js"]
@@ -92,10 +106,6 @@ WORKDIR /app/packages/build-worker
 RUN bun run build
 
 # Build Worker runner
-FROM deps AS build-worker
-COPY --from=build-worker-builder /app/packages/db ./packages/db
-COPY --from=build-worker-builder /app/packages/shared ./packages/shared
-COPY --from=build-worker-builder /app/packages/ai-service ./packages/ai-service
-COPY --from=build-worker-builder /app/packages/build-worker ./packages/build-worker
+FROM build-worker-builder AS build-worker
 WORKDIR /app/packages/build-worker
 CMD ["bun", "dist/index.js"]

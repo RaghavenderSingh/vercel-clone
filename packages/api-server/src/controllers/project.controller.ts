@@ -13,6 +13,9 @@ export const createProject = async (
     const project = await projectService.createProject(userId, req.body);
     res.status(201).json(project);
   } catch (error) {
+    if (error instanceof Error && error.message.includes("already been added")) {
+      return res.status(409).json({ error: error.message });
+    }
     next(error);
   }
 };

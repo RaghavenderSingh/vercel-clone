@@ -20,7 +20,7 @@ async function run() {
   try {
     const data = await s3.listObjectsV2({
       Bucket: bucketName,
-      MaxKeys: 50, // Just get enough to see structure
+      MaxKeys: 50,
     }).promise();
 
     if (!data.Contents || data.Contents.length === 0) {

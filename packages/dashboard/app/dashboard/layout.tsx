@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { DashboardNavbar } from "@/components/dashboard-navbar";
-import { authAPI } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -20,12 +20,10 @@ export default function DashboardLayout({
     }
   }, [status, router]);
 
-
-
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-12 h-12 text-primary animate-spin" />
       </div>
     );
   }
@@ -33,9 +31,11 @@ export default function DashboardLayout({
   if (!session) return null;
 
   return (
-    <div className="min-h-screen bg-black text-foreground selection:bg-primary/30 font-sans tracking-tight">
+    <div className="min-h-screen flex flex-col bg-background selection:bg-primary/10">
       <DashboardNavbar />
-      <main className="min-h-[calc(100vh-8rem)]">{children}</main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }

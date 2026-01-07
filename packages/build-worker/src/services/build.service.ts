@@ -38,9 +38,8 @@ async function runCommandInContainer(
   hostBuildPath: string,
   userEnvVars: Record<string, string> = {}
 ): Promise<void> {
-  const image = "node:20-alpine"; // Lightweight base image
+  const image = "node:20-alpine";
 
-  // SECURITY: Validate command and arguments
   validateCommand(command);
   validateArguments(args);
 
@@ -49,9 +48,6 @@ async function runCommandInContainer(
 
   emitLog(deploymentId, `🐳 Starting container (${image}) for: ${cmdString}`);
 
-  // SECURITY: Filter environment variables (no process.env exposure!)
-  // Note: Don't set NODE_ENV=production during install/build as it skips devDependencies
-  // Build tools (TypeScript, Tailwind, etc.) are often in devDependencies
   const defaultEnv = {
     NPM_CONFIG_LOGLEVEL: 'warn',
     PATH: '/usr/local/bin:/usr/bin:/bin',
@@ -62,13 +58,13 @@ async function runCommandInContainer(
   try {
     const container = await docker.createContainer({
       Image: image,
-      Cmd: fullCommand,  // SECURITY: Direct array execution (no shell!)
+      Cmd: fullCommand,
       Tty: false,
-      Env: safeEnv,  // SECURITY: Filtered environment variables only
+      Env: safeEnv,
       WorkingDir: "/app",
       HostConfig: {
-        Binds: [`${hostBuildPath}:/app`], // Mount host build dir to /app
-        AutoRemove: true, // Cleanup after exit
+        Binds: [`${hostBuildPath}:/app`],
+        AutoRemove: true,
       },
     });
 
@@ -80,7 +76,6 @@ async function runCommandInContainer(
       stderr: true,
     });
 
-    // Stream logs to WebSocket and wait for completion
     const streamPromise = new Promise<void>((resolve) => {
       container.modem.demuxStream(
         stream,
@@ -102,7 +97,6 @@ async function runCommandInContainer(
       stream.on('end', resolve);
     });
 
-    // Wait for both container to exit and stream to finish (with 15min timeout)
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('Build timed out after 15 minutes')), 15 * 60 * 1000);
     });
@@ -124,7 +118,7 @@ async function runCommandInContainer(
  * Helper to clean up log output
  */
 function logsToString(log: string | Buffer): string {
-    return log.toString().replace(/\x00/g, ''); // Remove null bytes sometimes emitted by docker
+    return log.toString().replace(/\x00/g, '');
 }
 
 
@@ -162,7 +156,6 @@ async function pushToECR(deploymentId: string, localImageName: string): Promise<
 
         const remoteImageName = `${ecrRepoUrl}:${deploymentId}`;
 
-        // Tag the image
         const image = docker.getImage(localImageName);
         await image.tag({ repo: ecrRepoUrl, tag: deploymentId });
 
@@ -184,7 +177,6 @@ async function pushToECR(deploymentId: string, localImageName: string): Promise<
                 (event) => {
                     if (event.status) {
                          logger.debug('Docker push progress', { deploymentId, status: event.status });
-                         // Reduce noise: only emit distinct status updates or errors
                     }
                     if (event.error) {
                          emitLog(deploymentId, `❌ Push failed: ${event.error}`);
@@ -238,7 +230,6 @@ async function buildUserImage(deploymentId: string, buildPath: string) {
 
         emitLog(deploymentId, `✅ Docker build completed: ${imageName}`);
         
-        // Push to Registry
         const finalImageRef = await pushToECR(deploymentId, imageName);
         
         await prisma.deployment.update({
@@ -255,7 +246,6 @@ async function buildUserImage(deploymentId: string, buildPath: string) {
 const buildLogsMap = new Map<string, string[]>();
 
 export async function processBuild(job: BuildJob) {
-  // Initialize logs for this deployment
   buildLogsMap.set(job.deploymentId, []);
   
   const buildPath = path.join(CONTAINER_BUILD_BASE, job.deploymentId);
@@ -270,7 +260,6 @@ export async function processBuild(job: BuildJob) {
         await cloneRepo(job.deploymentId, job.repoUrl, job.branch, buildPath);
     }
 
-    // Check for Dockerfile
     const dockerfilePath = path.join(buildPath, "Dockerfile");
     const hasDockerfile = await fs.stat(dockerfilePath).then(() => true).catch(() => false);
 
@@ -278,8 +267,6 @@ export async function processBuild(job: BuildJob) {
         // --- UNIVERSAL BUILD FLOW ---
         await buildUserImage(job.deploymentId, buildPath);
         
-        // Update status to READY (Code is built/containerized)
-        // Note: We skip S3 upload for Docker builds as the artifact is the image itself.
         await updateStatus(
             job.deploymentId, 
             DeploymentStatus.READY, 
@@ -289,7 +276,6 @@ export async function processBuild(job: BuildJob) {
         // --- STANDARD NODE.JS FLOW ---
         await installDependencies(job.deploymentId, job.installCommand, buildPath, hostBuildPath);
 
-        // Auto-configure Project (Magic Build)
         await configureProject(job.deploymentId, buildPath);
 
         await runBuild(job.deploymentId, job.buildCommand, buildPath, hostBuildPath, job.envVars);
@@ -317,7 +303,6 @@ export async function processBuild(job: BuildJob) {
       `Build failed: ${errorMessage}`
     );
 
-    // Trigger AI analysis for build error (non-blocking)
     if (aiFixerService.isAIEnabled()) {
       emitLog(job.deploymentId, `🤖 Analyzing error with AI...`);
       aiFixerService.analyzeBuildError(job.deploymentId, errorMessage, job).catch((aiError) => {
@@ -329,7 +314,6 @@ export async function processBuild(job: BuildJob) {
     }
   } finally {
     await cleanup(buildPath);
-    // Clean up logs from memory to prevent leaks
     buildLogsMap.delete(job.deploymentId);
   }
 }
@@ -338,7 +322,6 @@ async function extractZip(deploymentId: string, zipPath: string, buildPath: stri
     logger.info('Extracting zip file', { deploymentId, zipPath, buildPath });
     emitLog(deploymentId, `Validating zip file...`);
 
-    // Validate zip before extraction
     const { validateZip } = await import("../lib/zip-validator");
     const validation = validateZip(zipPath);
 
@@ -391,7 +374,6 @@ async function installDependencies(
   logger.info('Installing dependencies', { deploymentId, installCommand });
   emitLog(deploymentId, `Installing dependencies: ${installCommand}\n`);
 
-  // Parse command - split on first space (rudimentary)
   const parts = installCommand.split(" ");
   const command = parts[0];
   const args = parts.slice(1);
@@ -402,7 +384,7 @@ async function installDependencies(
     deploymentId,
     buildPath,
     hostBuildPath,
-    {} // No user env vars for install
+    {}
   );
 
   logger.info('Dependencies installed successfully', { deploymentId });
@@ -416,7 +398,6 @@ async function runBuild(
   hostBuildPath: string,
   envVars?: Record<string, string>
 ) {
-  // Check if build script exists in package.json
   const packageJsonPath = path.join(buildPath, "package.json");
   let hasBuildScript = false;
 
@@ -456,7 +437,7 @@ async function runBuild(
     deploymentId,
     buildPath,
     hostBuildPath,
-    envVars || {} // User-provided env vars (will be filtered)
+    envVars || {}
   );
 
   logger.info('Build completed successfully', { deploymentId });
@@ -465,12 +446,12 @@ async function runBuild(
 
 async function detectOutputDirectory(buildPath: string): Promise<string> {
   const possibleDirs = [
-    ".next/standalone", // Modern Next.js Serverless (Prioritize this!)
-    "out", // Next.js static export
-    "dist", // Vite, general builds
-    "build", // Create React App
-    ".next", // Next.js (SSR - fallback)
-    "public", // Static sites
+    ".next/standalone",
+    "out",
+    "dist",
+    "build",
+    ".next",
+    "public",
   ];
 
   for (const dir of possibleDirs) {
@@ -484,7 +465,6 @@ async function detectOutputDirectory(buildPath: string): Promise<string> {
     }
   }
 
-  // No build output found - deploy source code as-is (for Node.js/Express apps)
   logger.info('No build output detected - deploying source code', { buildPath });
   return ".";
 }
@@ -499,11 +479,9 @@ async function uploadToS3(
 
   logger.info('Uploading to S3', { deploymentId, outputPath, s3Prefix });
 
-  // Special handling for Next.js standalone builds
   if (outputDir === ".next/standalone") {
     emitLog(deploymentId, "Preparing Next.js standalone build...");
 
-    // Copy .next/static to standalone/.next/static
     const staticSrc = path.join(buildPath, ".next/static");
     const staticDest = path.join(outputPath, ".next/static");
     if (await fileExists(staticSrc)) {
@@ -511,7 +489,6 @@ async function uploadToS3(
       emitLog(deploymentId, "Copied .next/static to standalone directory");
     }
 
-    // Copy public to standalone/public
     const publicSrc = path.join(buildPath, "public");
     const publicDest = path.join(outputPath, "public");
     if (await fileExists(publicSrc)) {
@@ -533,7 +510,6 @@ async function updateStatus(
   status: DeploymentStatus,
   logs?: string
 ) {
-  // Get accumulated logs
   const currentLogs = buildLogsMap.get(deploymentId) || [];
   const fullLogs = currentLogs.join('\n');
 
@@ -541,7 +517,7 @@ async function updateStatus(
     where: { id: deploymentId },
     data: {
       status,
-      buildLogs: fullLogs, // Save full logs
+      buildLogs: fullLogs,
       updatedAt: new Date(),
     },
   });
@@ -549,12 +525,11 @@ async function updateStatus(
   socket.emit("deployment-update", {
     deploymentId,
     status,
-    logs: fullLogs, // Send full logs
+    logs: fullLogs,
     timestamp: new Date().toISOString(),
   });
 }
 function emitLog(deploymentId: string, log: string) {
-  // Store log in memory
   const currentLogs = buildLogsMap.get(deploymentId) || [];
   currentLogs.push(log);
   buildLogsMap.set(deploymentId, currentLogs);

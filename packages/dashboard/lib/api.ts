@@ -4,10 +4,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true, // Enable cookies for CSRF
+  withCredentials: true,
 });
 
-// CSRF Token Management
 let csrfToken: string | null = null;
 
 export const fetchCsrfToken = async (): Promise<string> => {
@@ -26,17 +25,13 @@ export const fetchCsrfToken = async (): Promise<string> => {
   }
 };
 
-// Request interceptor: Add JWT token and CSRF token
 api.interceptors.request.use(async (config) => {
-  // Add JWT token for authentication
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Add CSRF token for state-changing requests
   if (config.method && ["post", "put", "patch", "delete"].includes(config.method.toLowerCase())) {
-    // Fetch CSRF token if we don't have one
     if (!csrfToken) {
       try {
         await fetchCsrfToken();
@@ -53,17 +48,14 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Response interceptor: Handle CSRF token errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // If CSRF token is invalid, refresh it and retry
     if (error.response?.status === 403 && error.response?.data?.code === "EBADCSRFTOKEN") {
       console.log("CSRF token invalid, refreshing...");
       csrfToken = null;
       await fetchCsrfToken();
 
-      // Retry the original request
       const originalRequest = error.config;
       if (csrfToken) {
         originalRequest.headers["X-CSRF-Token"] = csrfToken;
@@ -106,10 +98,26 @@ export const deploymentsAPI = {
 };
 
 export const domainsAPI = {
+  listAll: () => api.get("/domains"),
   list: (projectId: string) => api.get(`/projects/${projectId}/domains`),
   add: (projectId: string, domain: string) => api.post(`/projects/${projectId}/domains`, { domain }),
   remove: (projectId: string, domain: string) => api.delete(`/projects/${projectId}/domains/${domain}`),
   verify: (projectId: string, domain: string) => api.post(`/projects/${projectId}/domains/${domain}/verify`),
+};
+
+export const activityAPI = {
+  list: () => api.get("/activities"),
+  listByProject: (projectId: string) => api.get(`/activities/project/${projectId}`),
+};
+
+export const usageAPI = {
+  get: () => api.get("/usage"),
+  getProject: (projectId: string) => api.get(`/usage/project/${projectId}`),
+};
+
+export const observabilityAPI = {
+  getMetrics: (projectId: string) => api.get(`/observability/project/${projectId}/metrics`),
+  getLogs: (deploymentId: string) => api.get(`/observability/deployment/${deploymentId}/logs`),
 };
 
 export default api;

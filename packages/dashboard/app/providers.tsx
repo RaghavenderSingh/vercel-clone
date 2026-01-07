@@ -34,7 +34,6 @@ function TokenSyncer() {
             console.log("[TokenSyncer] Setting backend token to localStorage");
             setAuthToken(session.backendToken);
 
-            // Prefetch CSRF token for future requests
             fetchCsrfToken()
                 .then(() => console.log("[TokenSyncer] CSRF token prefetched"))
                 .catch((err) => console.warn("[TokenSyncer] Failed to prefetch CSRF token:", err));
